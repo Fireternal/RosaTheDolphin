@@ -1,0 +1,22 @@
+{
+  "name": "rosa-the-dolphin",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ROSA THE DOLPHIN — una aventura submarina musical (vertical slice)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "qa": "node scripts/qa.mjs"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.48.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}

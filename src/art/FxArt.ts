@@ -1,0 +1,165 @@
+import Phaser from 'phaser';
+import { canvasTex, linear, radial } from './canvas';
+import { drawTrebleClef } from './RosaArt';
+
+/** Generic effect textures: glows, sparkles, bubbles, musical glyphs, light rays. */
+export function makeFxTextures(scene: Phaser.Scene): void {
+  canvasTex(scene, 'glow', 256, 256, (ctx) => {
+    ctx.fillStyle = radial(ctx, 128, 128, 128, [
+      [0, 'rgba(255,255,255,1)'],
+      [0.2, 'rgba(255,255,255,0.55)'],
+      [0.5, 'rgba(255,255,255,0.16)'],
+      [1, 'rgba(255,255,255,0)'],
+    ]);
+    ctx.fillRect(0, 0, 256, 256);
+  });
+
+  // dark soft shade used behind HUD text for legibility (no tint needed)
+  canvasTex(scene, 'shade', 256, 128, (ctx) => {
+    ctx.scale(1, 0.5);
+    ctx.fillStyle = radial(ctx, 128, 128, 128, [[0, 'rgba(2,12,30,0.75)'], [0.6, 'rgba(2,12,30,0.4)'], [1, 'rgba(2,12,30,0)']]);
+    ctx.fillRect(0, 0, 256, 256);
+  });
+
+  canvasTex(scene, 'softdot', 32, 32, (ctx) => {
+    ctx.fillStyle = radial(ctx, 16, 16, 16, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,0.6)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.fillRect(0, 0, 32, 32);
+  });
+
+  canvasTex(scene, 'spark', 64, 64, (ctx) => {
+    ctx.fillStyle = radial(ctx, 32, 32, 30, [[0, 'rgba(255,255,255,0.9)'], [0.25, 'rgba(255,255,255,0.25)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(32, 2);
+    ctx.quadraticCurveTo(35, 29, 62, 32);
+    ctx.quadraticCurveTo(35, 35, 32, 62);
+    ctx.quadraticCurveTo(29, 35, 2, 32);
+    ctx.quadraticCurveTo(29, 29, 32, 2);
+    ctx.fill();
+  });
+
+  canvasTex(scene, 'bubble', 32, 32, (ctx) => {
+    ctx.fillStyle = radial(ctx, 16, 16, 14, [[0, 'rgba(200,240,255,0.05)'], [0.8, 'rgba(200,240,255,0.18)'], [1, 'rgba(220,250,255,0.6)']]);
+    ctx.beginPath();
+    ctx.arc(16, 16, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(230,250,255,0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.ellipse(11, 10, 3.5, 2.2, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  canvasTex(scene, 'snow', 8, 8, (ctx) => {
+    ctx.fillStyle = radial(ctx, 4, 4, 4, [[0, 'rgba(255,255,255,0.9)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.fillRect(0, 0, 8, 8);
+  });
+
+  canvasTex(scene, 'heart', 48, 44, (ctx) => {
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(24, 40);
+    ctx.bezierCurveTo(4, 26, 0, 14, 8, 6);
+    ctx.bezierCurveTo(14, 0, 22, 4, 24, 10);
+    ctx.bezierCurveTo(26, 4, 34, 0, 40, 6);
+    ctx.bezierCurveTo(48, 14, 44, 26, 24, 40);
+    ctx.fill();
+  });
+
+  // Musical glyphs (white, tinted at runtime)
+  canvasTex(scene, 'glyph', 64, 96, (ctx) => {
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#ffffff';
+    ctx.save();
+    ctx.translate(24, 76);
+    ctx.rotate(-0.4);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 15, 10.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillRect(35, 10, 5.5, 64);
+    ctx.beginPath();
+    ctx.moveTo(40, 10);
+    ctx.bezierCurveTo(46, 26, 62, 30, 56, 54);
+    ctx.bezierCurveTo(56, 40, 50, 34, 40, 32);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  canvasTex(scene, 'glyph2', 96, 96, (ctx) => {
+    ctx.fillStyle = '#ffffff';
+    for (const x of [22, 70]) {
+      ctx.save();
+      ctx.translate(x, 76);
+      ctx.rotate(-0.4);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillRect(x + 10, 16, 5, 60);
+    }
+    ctx.beginPath();
+    ctx.moveTo(32, 14);
+    ctx.lineTo(85, 8);
+    ctx.lineTo(85, 20);
+    ctx.lineTo(32, 26);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  canvasTex(scene, 'clef', 64, 128, (ctx) => {
+    drawTrebleClef(ctx, 32, 66, 1.35, '#ffffff', 6);
+  });
+
+  canvasTex(scene, 'ring', 64, 64, (ctx) => {
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(32, 32, 26, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Light ray from the surface: soft vertical beam
+  canvasTex(scene, 'ray', 256, 1024, (ctx, w, h) => {
+    ctx.fillStyle = linear(ctx, 0, 0, 0, h, [[0, 'rgba(255,255,255,0.9)'], [0.4, 'rgba(255,255,255,0.35)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = linear(ctx, 0, 0, w, 0, [[0, 'rgba(0,0,0,0)'], [0.35, 'rgba(0,0,0,0.8)'], [0.5, 'rgba(0,0,0,1)'], [0.65, 'rgba(0,0,0,0.8)'], [1, 'rgba(0,0,0,0)']]);
+    ctx.fillRect(0, 0, w, h);
+  });
+
+  // Underwater gradient (sampled vertically by depth)
+  canvasTex(scene, 'bg_grad', 16, 1024, (ctx, w, h) => {
+    ctx.fillStyle = linear(ctx, 0, 0, 0, h, [
+      [0, '#5ccbe6'],
+      [0.12, '#2f9bcb'],
+      [0.35, '#1a6ba8'],
+      [0.6, '#114782'],
+      [0.82, '#0b3063'],
+      [1, '#08224a'],
+    ]);
+    ctx.fillRect(0, 0, w, h);
+  });
+
+  canvasTex(scene, 'sky', 16, 720, (ctx, w, h) => {
+    ctx.fillStyle = linear(ctx, 0, 0, 0, h, [
+      [0, '#3c6fb8'],
+      [0.45, '#7fb0dc'],
+      [0.8, '#f2d7b0'],
+      [1, '#ffe6bd'],
+    ]);
+    ctx.fillRect(0, 0, w, h);
+  });
+
+  canvasTex(scene, 'cloud', 400, 140, (ctx) => {
+    ctx.fillStyle = 'rgba(255,250,240,0.85)';
+    for (const [x, y, r] of [[90, 90, 50], [160, 70, 62], [240, 80, 55], [310, 95, 40], [200, 105, 50]]) {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
