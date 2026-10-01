@@ -503,6 +503,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   // =========================================================== gratitude
 
   showGratitude(m: GratitudeMission): Promise<void> {
+    this.celebrate(m.tone);
     if (m.tone === 'small') return this.smallThanks(m);
     if (m.tone === 'warm') return this.warmThanks(m);
     return this.grandThanks(m);
@@ -510,7 +511,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   private smallThanks(m: GratitudeMission): Promise<void> {
     return new Promise((resolve) => {
-      const c = this.add.container(960, 300).setAlpha(0);
+      const c = this.add.container(960, 300).setAlpha(0).setDepth(11);
       const t = this.add.text(0, 0, `«${m.message}»`, { fontFamily: FONT_TITLE, fontSize: '40px', color: WARM_CSS, fontStyle: 'italic' })
         .setOrigin(0.5).setShadow(0, 0, 'rgba(255,190,90,0.7)', 16, true, true);
       const who = this.add.text(0, 44, `— ${m.thanker}`, { fontFamily: FONT_UI, fontSize: '19px', color: '#ffd7e0' }).setOrigin(0.5).setLetterSpacing(2);
@@ -613,6 +614,52 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     const r = this.overlayResolve;
     this.overlayResolve = null;
     r?.();
+  }
+
+  /** Rainbow + shooting stars: every completed mission is a little party. */
+  celebrate(tone: 'small' | 'warm' | 'grand'): void {
+    const big = tone !== 'small';
+    const y = tone === 'small' ? 470 : 640;
+    const scale = tone === 'grand' ? 1.75 : big ? 1.35 : 0.85;
+    const rainbow = this.add.image(960, y, 'rainbow').setOrigin(0.5, 1).setDepth(10.5).setAlpha(0).setScale(scale * 0.7, scale * 0.35);
+    this.tweens.add({ targets: rainbow, alpha: 0.85, scaleX: scale, scaleY: scale, duration: 900, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: rainbow, alpha: 0, delay: tone === 'grand' ? 7000 : big ? 3600 : 2400, duration: 1200, onComplete: () => rainbow.destroy() });
+    const tints = [0xff6b8a, 0xffa45c, 0xffe066, 0x7ee08a, 0x5cc8ff, 0x7d8cff, 0xc38bff, 0xffffff];
+    const stars = this.add.particles(0, 0, 'star', {
+      speed: { min: 220, max: big ? 620 : 420 },
+      angle: { min: 200, max: 340 },
+      gravityY: 380,
+      scale: { start: big ? 0.75 : 0.55, end: 0.1 },
+      alpha: { start: 1, end: 0 },
+      rotate: { min: 0, max: 360 },
+      lifespan: { min: 1200, max: 2200 },
+      tint: tints,
+      blendMode: ADD,
+      emitting: false,
+    }).setDepth(12);
+    // bursts around the text, never on top of it
+    const points = big ? [[960, y - 400], [520, y - 60], [1400, y - 60]] : [[960, y - 80]];
+    points.forEach(([px, py], i) => this.time.delayedCall(i * 220, () => stars.explode(big ? 40 : 24, px, py)));
+    if (big) {
+      // a gentle shower of twinkles from the top of the arc
+      const rain = this.add.particles(0, 0, 'star', {
+        x: { min: 960 - 480 * scale, max: 960 + 480 * scale },
+        y: y - 460 * scale,
+        speedY: { min: 40, max: 140 },
+        speedX: { min: -30, max: 30 },
+        scale: { start: 0.4, end: 0.05 },
+        alpha: { start: 1, end: 0 },
+        rotate: { min: 0, max: 360 },
+        lifespan: 2600,
+        frequency: 45,
+        tint: tints,
+        blendMode: ADD,
+      }).setDepth(12);
+      this.time.delayedCall(tone === 'grand' ? 6000 : 2800, () => rain.stop());
+      this.time.delayedCall(tone === 'grand' ? 9000 : 5600, () => rain.destroy());
+    }
+    this.time.delayedCall(3000, () => stars.destroy());
+    AudioManager.celebrate();
   }
 
   private heartsBurst(x: number, y: number, n: number): void {

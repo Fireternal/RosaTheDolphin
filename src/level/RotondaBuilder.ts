@@ -484,7 +484,7 @@ export class RotondaBuilder {
     const rand = rng(202);
     for (let i = 0; i < 14; i++) {
       const x = rand() * WORLD.w * 1.25;
-      const img = s.add.image(x, floorAt(x / 1.25) + 520, `coral_branch_${Math.floor(rand() * 5)}`).setOrigin(0.5, 1).setScale(1.6 + rand()).setScrollFactor(1.25).setDepth(DEPTH.FOREGROUND).setTint(0x1d3550).setAlpha(0.95);
+      const img = s.add.image(x, floorAt(x / 1.25) + 520, `coral_branch_${Math.floor(rand() * 5)}`).setOrigin(0.5, 1).setScale(1.6 + rand()).setScrollFactor(1.25).setDepth(DEPTH.FOREGROUND).setTint(0x1d3550).setAlpha(0.6);
       img.rotation = (rand() - 0.5) * 0.3;
     }
   }
@@ -539,7 +539,7 @@ export class RotondaBuilder {
         left.push(new Phaser.Math.Vector2(x - w, y));
         right.push(new Phaser.Math.Vector2(x + w, y));
       }
-      target.fillStyle(k.color, k.fg ? 1 : 0.95);
+      target.fillStyle(k.color, k.fg ? 0.7 : 0.95);
       target.fillPoints([...left, ...right.reverse()], true);
       if (!k.fg) {
         // little leaves

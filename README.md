@@ -59,6 +59,13 @@ Las 7 notas sueltas forman el repertorio de Rosa (dos de ellas solo aparecen con
 de mar que la acompaña, da pistas según el progreso (E junto a ella). El progreso se guarda en `localStorage`
 (menú → CONTINUAR).
 
+## Tu propia música
+
+Menú → **MÚSICA** → «Elegir una canción de mi ordenador…». La canción sustituye a la banda sonora
+generada: empieza lejana y amortiguada y se abre con cada fragmento, hasta sonar completa en el final.
+Se guarda solo en el navegador (IndexedDB), no se sube a ningún sitio ni forma parte del juego publicado.
+«Usar la banda sonora original» vuelve a la música de Rosa.
+
 ## Música que se construye jugando
 
 `AudioManager` sintetiza todo con Web Audio (envolventes, armónicos, reverb por convolución) y un secuenciador

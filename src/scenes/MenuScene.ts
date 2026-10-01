@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { FONT_TITLE, FONT_UI, GOLD, GOLD_CSS } from '../config';
 import { AudioManager } from '../systems/AudioManager';
 import { SaveManager } from '../systems/SaveManager';
+import { SongStore } from '../systems/SongStore';
 import { MenuBackdrop } from './MenuBackdrop';
 
 interface Item {
@@ -16,6 +17,11 @@ export class MenuScene extends Phaser.Scene {
   private items: Item[] = [];
   private index = 0;
   private controls!: Phaser.GameObjects.Container;
+  private music!: Phaser.GameObjects.Container;
+  private musicStatus!: Phaser.GameObjects.Text;
+  private musicItems: Phaser.GameObjects.Text[] = [];
+  private musicIndex = 0;
+  private static songLoaded = false;
   private leaving = false;
   private marker!: Phaser.GameObjects.Image;
 
@@ -46,6 +52,7 @@ export class MenuScene extends Phaser.Scene {
       ['JUGAR', true, () => this.startNew()],
       ['CONTINUAR', hasSave, () => this.continueGame()],
       ['CONTROLES', true, () => this.showControls(true)],
+      ['MÚSICA', true, () => this.showMusic(true)],
     ];
     this.marker = this.add.image(0, 0, 'glyph').setTint(GOLD).setScale(0.32).setDepth(31);
     defs.forEach(([label, enabled, action], i) => {
@@ -64,6 +71,8 @@ export class MenuScene extends Phaser.Scene {
     this.add.text(960, 1050, 'Vertical slice · Melodía I — La Rotonda Sumergida', { fontFamily: FONT_UI, fontSize: '15px', color: '#9fc4e6' })
       .setOrigin(0.5).setAlpha(0.5).setDepth(30);
     this.controls = this.buildControls();
+    this.musicItems = [];
+    this.music = this.buildMusic();
 
     const kb = this.input.keyboard!;
     kb.on('keydown', (e: KeyboardEvent) => this.onKey(e));
@@ -80,6 +89,12 @@ export class MenuScene extends Phaser.Scene {
       AudioManager.setFullMode(false);
       AudioManager.setLayerCount(1, 3);
     }
+    if (!MenuScene.songLoaded && AudioManager.ready) {
+      MenuScene.songLoaded = true;
+      void SongStore.load().then(async (song) => {
+        if (song && (await AudioManager.setCustomSong(song.data.slice(0), song.name))) this.refreshMusic();
+      });
+    }
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -87,6 +102,13 @@ export class MenuScene extends Phaser.Scene {
     if (this.leaving) return;
     if (this.controls.visible) {
       if (['Escape', 'Enter', ' ', 'e', 'E'].includes(e.key)) this.showControls(false);
+      return;
+    }
+    if (this.music.visible) {
+      if (e.key === 'Escape') this.showMusic(false);
+      else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this.selectMusic((this.musicIndex + 2) % 3);
+      else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') this.selectMusic((this.musicIndex + 1) % 3);
+      else if (e.key === 'Enter' || e.key === ' ' || e.key === 'e' || e.key === 'E') this.activateMusic(this.musicIndex);
       return;
     }
     if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this.move(-1);
@@ -163,6 +185,92 @@ export class MenuScene extends Phaser.Scene {
     });
     c.add(this.add.text(0, 280, 'ESC / ENTER / clic para volver', { fontFamily: FONT_UI, fontSize: '18px', color: '#9fc4e6' }).setOrigin(0.5));
     return c;
+  }
+
+  // ------------------------------------------------------------ music panel
+
+  private buildMusic(): Phaser.GameObjects.Container {
+    const c = this.add.container(960, 540).setDepth(50).setVisible(false);
+    const dim = this.add.rectangle(0, 0, 1920, 1080, 0x020a1a, 0.6).setInteractive();
+    dim.on('pointerdown', () => this.showMusic(false));
+    const bg = this.add.graphics();
+    bg.fillStyle(0x04142e, 0.96);
+    bg.fillRoundedRect(-560, -300, 1120, 600, 26);
+    bg.lineStyle(2, GOLD, 0.6);
+    bg.strokeRoundedRect(-560, -300, 1120, 600, 26);
+    const panelBlock = this.add.zone(0, 0, 1120, 600).setInteractive();
+    c.add([dim, bg, panelBlock]);
+    c.add(this.add.text(0, -250, 'MÚSICA DE FONDO', { fontFamily: FONT_TITLE, fontSize: '42px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5).setLetterSpacing(6));
+    this.musicStatus = this.add.text(0, -170, '', { fontFamily: FONT_UI, fontSize: '25px', color: '#eaf6ff', align: 'center', wordWrap: { width: 1000 } }).setOrigin(0.5);
+    c.add(this.musicStatus);
+    const labels = ['Elegir una canción de mi ordenador…', 'Usar la banda sonora original', 'Volver'];
+    labels.forEach((l, i) => {
+      const t = this.add.text(0, -60 + i * 72, l, { fontFamily: FONT_TITLE, fontSize: '34px', color: '#eaf6ff' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => this.selectMusic(i));
+      t.on('pointerdown', () => this.activateMusic(i));
+      this.musicItems.push(t);
+      c.add(t);
+    });
+    c.add(this.add.text(0, 200,
+      'Tu canción se guarda solo en este navegador: no se sube a ningún sitio.\nAl empezar suena lejana y amortiguada, y se abre con cada fragmento que encuentras.',
+      { fontFamily: FONT_UI, fontSize: '19px', color: '#9fc4e6', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    this.refreshMusic();
+    return c;
+  }
+
+  private refreshMusic(): void {
+    if (!this.musicStatus?.active) return;
+    const name = AudioManager.customSongName;
+    this.musicStatus.setText(name ? `Ahora suena: «${name}»` : 'Ahora suena: la banda sonora original de Rosa');
+  }
+
+  private selectMusic(i: number): void {
+    if (i !== this.musicIndex) AudioManager.uiMove();
+    this.musicIndex = i;
+    this.musicItems.forEach((t, k) => t.setColor(k === i ? GOLD_CSS : '#eaf6ff').setScale(k === i ? 1.06 : 1));
+  }
+
+  private activateMusic(i: number): void {
+    AudioManager.uiSelect();
+    if (i === 0) this.pickSong();
+    else if (i === 1) {
+      AudioManager.clearCustomSong();
+      void SongStore.clear();
+      this.refreshMusic();
+    } else this.showMusic(false);
+  }
+
+  private pickSong(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.style.display = 'none';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+      this.musicStatus.setText('Cargando…');
+      const data = await file.arrayBuffer();
+      const name = file.name.replace(/\.[^.]+$/, '');
+      const ok = await AudioManager.setCustomSong(data.slice(0), name);
+      if (ok) {
+        await SongStore.save({ name, data });
+        this.refreshMusic();
+      } else {
+        this.musicStatus.setText('No he podido leer ese archivo. Prueba con un MP3, OGG o WAV.');
+      }
+    });
+    document.body.appendChild(input);
+    input.click();
+  }
+
+  private showMusic(v: boolean): void {
+    this.music.setVisible(v);
+    if (v) {
+      this.refreshMusic();
+      this.selectMusic(0);
+      this.tweens.add({ targets: this.music, alpha: { from: 0, to: 1 }, duration: 250 });
+    }
   }
 
   private showControls(v: boolean): void {

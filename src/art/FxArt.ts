@@ -21,6 +21,46 @@ export function makeFxTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, 256, 256);
   });
 
+  // celebration rainbow: soft concentric bands
+  canvasTex(scene, 'rainbow', 1024, 540, (ctx, w, h) => {
+    const bands = ['#ff6b8a', '#ffa45c', '#ffe066', '#7ee08a', '#5cc8ff', '#7d8cff', '#c38bff'];
+    const cx = w / 2;
+    const cy = h - 10;
+    const outer = 500;
+    const bw = 26;
+    ctx.globalAlpha = 0.9;
+    bands.forEach((c, i) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, outer - i * bw, Math.PI, 0);
+      ctx.arc(cx, cy, outer - (i + 1) * bw, 0, Math.PI, true);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+    });
+    // fade the feet of the arc
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = linear(ctx, 0, cy - 220, 0, cy, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,1)']]);
+    ctx.fillRect(0, cy - 220, w, 230);
+  });
+
+  canvasTex(scene, 'star', 64, 64, (ctx) => {
+    ctx.fillStyle = radial(ctx, 32, 32, 30, [[0, 'rgba(255,255,255,0.7)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 9 : 22;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const x = 32 + Math.cos(a) * r;
+      const y = 32 + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  });
+
   canvasTex(scene, 'softdot', 32, 32, (ctx) => {
     ctx.fillStyle = radial(ctx, 16, 16, 16, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,0.6)'], [1, 'rgba(255,255,255,0)']]);
     ctx.fillRect(0, 0, 32, 32);

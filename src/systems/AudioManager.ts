@@ -95,6 +95,11 @@ const COUNTER: [number, number, number][] = [
   [56, 69, 4], [60, 67, 4],
 ];
 
+/** Max simultaneous voices before background notes are skipped. */
+const MAX_VOICES = 40;
+/** Seconds of music scheduled ahead of time. */
+const LOOKAHEAD = 0.4;
+
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 class AudioManagerImpl {
@@ -115,6 +120,15 @@ class AudioManagerImpl {
   private notePool: NoteName[] = [];
   private melodyGain = 0.55;
   private waterGain: GainNode | null = null;
+  /** End times of sounding voices, to keep the synth within a CPU budget. */
+  private voiceEnds: number[] = [];
+  private schedulingMusic = false;
+  /** Optional song chosen by the player; replaces the procedural soundtrack. */
+  private song: { buffer: AudioBuffer; name: string } | null = null;
+  private songSrc: AudioBufferSourceNode | null = null;
+  private songFilter: BiquadFilterNode | null = null;
+  private songGain: GainNode | null = null;
+  private songLevel = 0;
   muted = false;
   fullMode = false;
 
@@ -127,7 +141,8 @@ class AudioManagerImpl {
     if (!this.ctx) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return;
-      this.ctx = new Ctor();
+      // 'playback' asks the browser for larger audio buffers: fewer crackles when the game is busy
+      this.ctx = new Ctor({ latencyHint: 'playback' });
       this.buildGraph();
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -267,6 +282,11 @@ class AudioManagerImpl {
     const ctx = this.ctx;
     if (!ctx) return;
     const sample = this.samples.get(inst);
+    // voice budget: background music notes are dropped (never SFX) when too many voices ring
+    const now = ctx.currentTime;
+    if (this.voiceEnds.length > 24) this.voiceEnds = this.voiceEnds.filter((e) => e > now);
+    if (this.schedulingMusic && this.voiceEnds.length >= MAX_VOICES) return;
+    this.voiceEnds.push(t + dur + 2.5);
     if (sample) return this.playSample(sample, dest, midi, t, dur, vel);
     const f = mtof(midi);
     const out = ctx.createGain();
@@ -413,7 +433,7 @@ class AudioManagerImpl {
         const stop = t + dur + 2.6;
         const mix = ctx.createGain();
         mix.gain.value = 1;
-        const formants: [number, number, number][] = [[700, 6, 1], [1150, 7, 0.6], [2700, 9, 0.18]];
+        const formants: [number, number, number][] = [[700, 6, 1.1], [1150, 7, 0.7]];
         for (const [ff, q, a] of formants) {
           const bp = ctx.createBiquadFilter();
           bp.type = 'bandpass';
@@ -423,7 +443,7 @@ class AudioManagerImpl {
           fg.gain.value = a * 2.2;
           mix.connect(bp).connect(fg).connect(out);
         }
-        for (const det of [-11, 0, 12]) this.oscVoice(mix, 'sawtooth', f, t, stop, 0.3, det);
+        for (const det of [-10, 10]) this.oscVoice(mix, 'sawtooth', f, t, stop, 0.4, det);
         break;
       }
     }
@@ -594,6 +614,13 @@ class AudioManagerImpl {
     this.voice('chime', this.sfxBus, notes[Math.floor(Math.random() * notes.length)], this.now() + 0.005, 0.05, 0.05);
   }
 
+  /** Sparkling "twinkle" run for the rainbow celebration. */
+  celebrate(): void {
+    if (!this.ctx) return;
+    const t = this.now() + 0.05;
+    [84, 88, 91, 96, 100, 103].forEach((m, i) => this.voice('chime', this.sfxBus, m, t + i * 0.055, 0.15, 0.1));
+  }
+
   /** The reward sound for being thanked. `grand` is reserved for the finale. */
   gratitude(grand = false): void {
     if (!this.ctx) return;
@@ -611,8 +638,77 @@ class AudioManagerImpl {
 
   // ---------------------------------------------------------------- music
 
+  get customSongName(): string | null {
+    return this.song?.name ?? null;
+  }
+
+  /**
+   * Uses the player's own song as background music. It starts muffled and quiet
+   * and opens up with every fragment, so the "music grows as you play" idea holds.
+   */
+  async setCustomSong(data: ArrayBuffer, name: string): Promise<boolean> {
+    if (!this.ctx) return false;
+    try {
+      const buffer = await this.ctx.decodeAudioData(data);
+      this.song = { buffer, name };
+      // the procedural layers would clash with the song: silence them
+      for (const [id, node] of this.layerNodes) if (id !== 'base') node.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
+      if (this.schedulerId !== null) this.startSong();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  clearCustomSong(): void {
+    this.stopSong();
+    this.song = null;
+    if (!this.ctx) return;
+    for (const [id, on] of this.layerOn) if (on) this.setLayer(id, true, 1.5);
+  }
+
+  private startSong(): void {
+    if (!this.ctx || !this.song) return;
+    this.stopSong();
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = this.song.buffer;
+    src.loop = true;
+    this.songFilter = ctx.createBiquadFilter();
+    this.songFilter.type = 'lowpass';
+    this.songFilter.Q.value = 0.7;
+    this.songGain = ctx.createGain();
+    this.songGain.gain.value = 0.0001;
+    src.connect(this.songFilter).connect(this.songGain).connect(this.musicBus);
+    src.start();
+    this.songSrc = src;
+    this.applySongLevel(2.5);
+  }
+
+  private stopSong(): void {
+    if (!this.songSrc || !this.ctx) return;
+    const g = this.songGain!;
+    const old = this.songSrc;
+    g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.3);
+    old.stop(this.ctx.currentTime + 1.5);
+    this.songSrc = null;
+  }
+
+  private applySongLevel(fade = 2.5): void {
+    if (!this.ctx || !this.songFilter || !this.songGain) return;
+    const n = this.fullMode ? 8.5 : this.songLevel;
+    const cutoff = Math.min(20000, 420 * Math.pow(2, n * 0.72));
+    const gain = this.fullMode ? 0.9 : 0.34 + n * 0.06;
+    const t = this.ctx.currentTime;
+    this.songFilter.frequency.cancelScheduledValues(t);
+    this.songFilter.frequency.setTargetAtTime(cutoff, t, fade / 3);
+    this.songGain.gain.cancelScheduledValues(t);
+    this.songGain.gain.setTargetAtTime(gain, t, fade / 3);
+  }
+
   startMusic(): void {
     if (!this.ctx || this.schedulerId !== null) return;
+    if (this.song) this.startSong();
     this.setLayer('base', true, 2);
     this.setLayer('chimes', true, 1);
     this.startWater();
@@ -639,7 +735,7 @@ class AudioManagerImpl {
     this.waterGain = ctx.createGain();
     this.waterGain.gain.value = 0.0001;
     this.waterGain.gain.setTargetAtTime(0.09, ctx.currentTime, 1.5);
-    n.connect(bp).connect(this.waterGain).connect(this.musicBus);
+    n.connect(bp).connect(this.waterGain).connect(this.master);
     n.start();
     lfo.start();
   }
@@ -649,7 +745,7 @@ class AudioManagerImpl {
     const node = this.layerNodes.get(id);
     if (!node) return;
     this.layerOn.set(id, on);
-    const target = on ? (id === 'melody' ? this.melodyGain : LAYER_GAIN[id]) : 0;
+    const target = on && (!this.song || id === 'base') ? (id === 'melody' ? this.melodyGain : LAYER_GAIN[id]) : 0;
     node.gain.cancelScheduledValues(this.ctx.currentTime);
     node.gain.setTargetAtTime(Math.max(0, target), this.ctx.currentTime, fade / 3);
   }
@@ -657,6 +753,8 @@ class AudioManagerImpl {
   /** Number of fragment layers active (0..7). */
   setLayerCount(n: number, fade = 3): void {
     FRAGMENT_LAYERS.forEach((id, i) => this.setLayer(id, i < n, fade));
+    this.songLevel = n;
+    this.applySongLevel(fade);
   }
 
   setNotePool(notes: NoteName[]): void {
@@ -669,6 +767,7 @@ class AudioManagerImpl {
     this.melodyGain = on ? 0.62 : 0.42;
     this.setLayerCount(on ? 7 : this.countFragmentLayers(), 2);
     this.setLayer('choir', on, 4);
+    this.applySongLevel(2);
   }
 
   private countFragmentLayers(): number {
@@ -692,13 +791,20 @@ class AudioManagerImpl {
   private tick(): void {
     if (!this.ctx) return;
     const stepDur = 60 / this.tempo / 2;
-    // when the tab sleeps, skip ahead instead of firing a burst of notes
-    if (this.nextStepTime < this.ctx.currentTime - 0.5) this.nextStepTime = this.ctx.currentTime + 0.05;
-    while (this.nextStepTime < this.ctx.currentTime + 0.15) {
+    const now = this.ctx.currentTime;
+    // if the page stalled, silently skip the steps already in the past but keep the beat grid
+    while (this.nextStepTime < now - 0.01) {
+      this.nextStepTime += stepDur;
+      this.step++;
+    }
+    // generous look-ahead so heavy frames (the finale) never starve the audio
+    this.schedulingMusic = true;
+    while (this.nextStepTime < now + LOOKAHEAD) {
       this.scheduleStep(this.step % LOOP_STEPS, this.nextStepTime, stepDur);
       this.nextStepTime += stepDur;
       this.step++;
     }
+    this.schedulingMusic = false;
   }
 
   private on(id: LayerId): boolean {
@@ -706,6 +812,7 @@ class AudioManagerImpl {
   }
 
   private scheduleStep(s: number, t: number, sd: number): void {
+    if (this.song) return; // the player's song is playing instead
     const half = Math.floor(s / 4);
     const chordName = PROGRESSION[half];
     const chord = CHORDS[chordName];
@@ -716,7 +823,7 @@ class AudioManagerImpl {
     const chordDur = runHalves * 4 * sd;
     const L = this.layerNodes;
 
-    if (this.on('base') && chordStart) {
+    if (this.on('base') && chordStart && !this.fullMode) {
       for (const m of chord.tones.slice(0, 3)) this.voice('pad', L.get('base')!, m - 12, t, chordDur, 0.14);
     }
     if (this.on('base') && Math.random() < 0.05) {

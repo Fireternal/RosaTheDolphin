@@ -3,6 +3,7 @@ import { DEPTH, GOLD_CSS, LAYER_NAMES, NOTE_INFO, NOTE_ORDER, NoteName } from '.
 import { bus, EV } from '../core/EventBus';
 import { damp, dist, isDebug, wait } from '../core/util';
 import { FishSchool, Jellyfish, Lumi, Manta, Turtle } from '../entities/Creatures';
+import { InteractMarker } from '../entities/InteractMarker';
 import { MelodyFragment } from '../entities/MelodyFragment';
 import { MusicalNote } from '../entities/MusicalNote';
 import { RosaPlayer } from '../entities/RosaPlayer';
@@ -29,6 +30,10 @@ interface Interactable {
   label: () => string;
   enabled: () => boolean;
   action: () => void;
+  /** Vertical offset of the floating "E" marker from pos(). */
+  markerY: number;
+  /** Show the inviting "near" marker before Rosa is in range. */
+  invite?: boolean;
 }
 
 const ADD = Phaser.BlendModes.ADD;
@@ -55,6 +60,7 @@ export class GameScene extends Phaser.Scene {
   private activePuzzle: MusicPuzzle | null = null;
   private puzzleBusy = false;
   private interactables: Interactable[] = [];
+  private markers = new Map<string, InteractMarker>();
   private busy = false;
   private ready = false;
   private gateOpen = false;
@@ -125,6 +131,7 @@ export class GameScene extends Phaser.Scene {
     this.createPuzzles();
     this.createInteractables();
     this.registerSonarTargets();
+    this.markers = new Map(this.interactables.map((it) => [it.id, new InteractMarker(this)]));
 
     this.keys = this.input.keyboard!.addKeys({
       UP: 'UP', DOWN: 'DOWN', LEFT: 'LEFT', RIGHT: 'RIGHT', W: 'W', A: 'A', S: 'S', D: 'D',
@@ -233,38 +240,38 @@ export class GameScene extends Phaser.Scene {
     const statuePos = () => STATUE_PUZZLE;
     this.interactables = [
       {
-        id: 'statue', pos: statuePos, radius: 420,
+        id: 'statue', markerY: -90, invite: true, pos: statuePos, radius: 420,
         label: () => (this.statueAwake ? 'E — INTERPRETAR LA MELODÍA' : 'E — ESCUCHAR'),
         enabled: () => !this.finaleDone,
         action: () => this.interactStatue(),
       },
       {
-        id: 'conch', pos: () => ({ x: CONCH.x, y: CONCH.y - 120 }), radius: 260,
+        id: 'conch', markerY: -150, invite: true, pos: () => ({ x: CONCH.x, y: CONCH.y - 120 }), radius: 260,
         label: () => 'E — ESCUCHAR', enabled: () => !this.puzzles.gate.solved,
         action: () => void this.startPuzzle(this.puzzles.gate),
       },
       {
-        id: 'organ', pos: () => ({ x: ORGAN.x, y: ORGAN.y - 150 }), radius: 280,
+        id: 'organ', markerY: -200, invite: true, pos: () => ({ x: ORGAN.x, y: ORGAN.y - 150 }), radius: 280,
         label: () => 'E — ESCUCHAR', enabled: () => !this.puzzles.organ.solved,
         action: () => void this.startPuzzle(this.puzzles.organ),
       },
       {
-        id: 'clam', pos: () => ({ x: CLAM.x, y: CLAM.y - 80 }), radius: 240,
+        id: 'clam', markerY: -110, invite: true, pos: () => ({ x: CLAM.x, y: CLAM.y - 80 }), radius: 240,
         label: () => 'E — ESCUCHAR', enabled: () => !this.clamOpen,
         action: () => this.ui.toast('La almeja duerme profundamente…', 'Quizá un sonido la despierte (Q — SONAR)', '#ffe2d0'),
       },
       {
-        id: 'bruno', pos: () => this.bruno, radius: 190,
+        id: 'bruno', markerY: -80, invite: true, pos: () => this.bruno, radius: 190,
         label: () => 'E — HABLAR', enabled: () => this.bruno.mode === 'hide',
         action: () => void this.talkBruno(),
       },
       {
-        id: 'marea', pos: () => this.marea, radius: 230,
+        id: 'marea', markerY: -110, invite: true, pos: () => this.marea, radius: 230,
         label: () => 'E — HABLAR', enabled: () => !this.gratitude?.isDone('bruno') && this.bruno.mode !== 'follow',
         action: () => void this.talkMarea(),
       },
       {
-        id: 'lumi', pos: () => this.lumi, radius: 130,
+        id: 'lumi', markerY: -70, invite: false, pos: () => this.lumi, radius: 130,
         label: () => 'E — HABLAR CON LUMI', enabled: () => this.lumi.following && !!this.save.flags.introDone,
         action: () => void this.talkLumi(),
       },
@@ -394,13 +401,16 @@ export class GameScene extends Phaser.Scene {
         noteSeq.forEach((n) => this.playFreeNote(n));
         const it = this.nearestInteractable();
         this.ui.setPrompt(it ? it.label() : null);
+        this.updateMarkers(dt, it);
         if (pressed.E && it) {
           AudioManager.uiMove();
           it.action();
         }
       }
-    } else if (!this.activePuzzle) {
-      this.ui.setPrompt(null);
+      if (this.activePuzzle) this.updateMarkers(dt, null, true);
+    } else {
+      if (!this.activePuzzle) this.ui.setPrompt(null);
+      this.updateMarkers(dt, null, true);
     }
 
     this.sonar.update(dt);
@@ -496,6 +506,24 @@ export class GameScene extends Phaser.Scene {
     const k = damp(3.2, dt);
     this.camFocus.x += (tx - this.camFocus.x) * k;
     this.camFocus.y += (ty - this.camFocus.y) * k;
+  }
+
+  /** Floating "E" key-caps above interactive things: inviting when near, full when in range. */
+  private updateMarkers(dt: number, active: Interactable | null, hideAll = false): void {
+    for (const it of this.interactables) {
+      const m = this.markers.get(it.id);
+      if (!m) continue;
+      const p = it.pos();
+      let state: 'hidden' | 'near' | 'active' = 'hidden';
+      if (!hideAll && it.enabled()) {
+        if (it === active) state = 'active';
+        else if (it.invite && dist(p.x, p.y, this.rosa.x, this.rosa.y) < it.radius * 2.6) state = 'near';
+      }
+      let my = p.y + it.markerY;
+      // never sit on top of Rosa: float above her when she is right there
+      if (Math.abs(p.x - this.rosa.x) < 160) my = Math.min(my, this.rosa.y - 150);
+      m.set(state, p.x, my, it.label().replace(/^E\s*—\s*/, ''), dt);
+    }
   }
 
   private nearestInteractable(): Interactable | null {
@@ -1105,7 +1133,7 @@ export class GameScene extends Phaser.Scene {
     phase = 'done';
 
     // 7. a moment of silence… everyone comes closer
-    AudioManager.duck(0.0001, 1.6);
+    AudioManager.duck(0.0001, 2.4);
     cam.pan(this.rosa.x, this.rosa.y - 60, 2200, 'Sine.easeInOut');
     cam.zoomTo(0.85, 2200, 'Sine.easeInOut');
     this.lumi.anchor = { x: this.rosa.x - 190, y: this.rosa.y - 90 };
@@ -1172,6 +1200,7 @@ export class GameScene extends Phaser.Scene {
         prompt: this.nearestInteractable()?.id ?? null,
         objective: this.objectives?.text,
         audio: AudioManager.ctx?.state ?? 'none',
+        song: AudioManager.customSongName,
       }),
       fragmentSpots: FRAGMENT_SPOTS,
       noteSpots: NOTE_SPOTS,
