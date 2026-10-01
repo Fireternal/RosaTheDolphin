@@ -12,7 +12,11 @@ Phaser 3 · TypeScript · Vite. Sin assets externos: todo el arte y el audio se 
 ![La Rotonda restaurada](docs/finale-rotonda.png)
 ![Las criaturas se acercan a Rosa](docs/final-gathering.png)
 
-## Arrancar
+## Jugar online
+
+**https://fireternal.github.io/RosaTheDolphin/** — se publica automáticamente con cada cambio en `main` (GitHub Pages). Chrome, Edge o Firefox en ordenador, con teclado y sonido.
+
+## Arrancar en local
 
 ```bash
 git clone https://github.com/Fireternal/RosaTheDolphin.git
