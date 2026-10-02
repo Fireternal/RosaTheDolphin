@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { centerLayout } from '../core/layout';
 import { FONT_TITLE, GOLD_CSS } from '../config';
 import { makeCreatureTextures } from '../art/CreatureArt';
 import { makeEnvTextures } from '../art/EnvArt';
@@ -15,6 +16,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
+    centerLayout(this);
     const t = this.add.text(960, 540, 'Afinando el océano…', { fontFamily: FONT_TITLE, fontSize: '34px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5);
     this.tweens.add({ targets: t, alpha: 0.4, duration: 600, yoyo: true, repeat: -1 });
     // let the text render one frame before the (synchronous) texture generation

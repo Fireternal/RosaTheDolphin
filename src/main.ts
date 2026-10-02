@@ -8,6 +8,7 @@ import { MenuScene } from './scenes/MenuScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { UIScene } from './scenes/UIScene';
 import { isDebug } from './core/util';
+import { goImmersive, isTouchDevice } from './core/layout';
 
 const game = new Phaser.Game({
   // ?canvas forces the Canvas renderer (useful on machines without GPU acceleration)
@@ -16,7 +17,9 @@ const game = new Phaser.Game({
   width: GAME_W,
   height: GAME_H,
   backgroundColor: '#03142a',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, fullscreenTarget: document.documentElement },
+  // EXPAND: fills any screen shape (no black bars); 1920x1080 is the guaranteed safe area
+  scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH, fullscreenTarget: document.documentElement },
+  input: { activePointers: 3 },
   render: { antialias: true, powerPreference: 'high-performance' },
   scene: [BootScene, PreloadScene, MenuScene, IntroScene, GameScene, UIScene, EndingScene],
 });
@@ -32,6 +35,15 @@ fsButton?.addEventListener('click', toggleFullscreen);
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
 });
+// on phones, turn to landscape as soon as we are in full screen
+game.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, () => {
+  const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+  o?.lock?.('landscape').catch(() => undefined);
+});
+// phones: the first tap goes full screen (and landscape) — a game feels right that way
+if (isTouchDevice()) {
+  window.addEventListener('touchend', () => goImmersive(game), { once: true });
+}
 game.events.once(Phaser.Core.Events.READY, () => {
   // browsers without the Fullscreen API (e.g. iPhone Safari) get no button
   if (!game.device.fullscreen.available && fsButton) fsButton.style.display = 'none';

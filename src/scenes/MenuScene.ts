@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { centerLayout } from '../core/layout';
 import { FONT_TITLE, FONT_UI, GOLD, GOLD_CSS } from '../config';
 import { AudioManager } from '../systems/AudioManager';
 import { SaveManager } from '../systems/SaveManager';
@@ -30,6 +31,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    centerLayout(this);
+    AudioManager.setSongPreview(true);
     this.items = [];
     this.index = 0;
     this.leaving = false;
@@ -160,7 +163,7 @@ export class MenuScene extends Phaser.Scene {
 
   private buildControls(): Phaser.GameObjects.Container {
     const c = this.add.container(960, 540).setDepth(50).setVisible(false);
-    const dim = this.add.rectangle(0, 0, 1920, 1080, 0x020a1a, 0.6).setInteractive();
+    const dim = this.add.rectangle(0, 0, 5000, 3000, 0x020a1a, 0.6).setInteractive();
     dim.on('pointerdown', () => this.showControls(false));
     const bg = this.add.graphics();
     bg.fillStyle(0x04142e, 0.95);
@@ -191,7 +194,7 @@ export class MenuScene extends Phaser.Scene {
 
   private buildMusic(): Phaser.GameObjects.Container {
     const c = this.add.container(960, 540).setDepth(50).setVisible(false);
-    const dim = this.add.rectangle(0, 0, 1920, 1080, 0x020a1a, 0.6).setInteractive();
+    const dim = this.add.rectangle(0, 0, 5000, 3000, 0x020a1a, 0.6).setInteractive();
     dim.on('pointerdown', () => this.showMusic(false));
     const bg = this.add.graphics();
     bg.fillStyle(0x04142e, 0.96);
@@ -203,7 +206,7 @@ export class MenuScene extends Phaser.Scene {
     c.add(this.add.text(0, -250, 'MÚSICA DE FONDO', { fontFamily: FONT_TITLE, fontSize: '42px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5).setLetterSpacing(6));
     this.musicStatus = this.add.text(0, -170, '', { fontFamily: FONT_UI, fontSize: '25px', color: '#eaf6ff', align: 'center', wordWrap: { width: 1000 } }).setOrigin(0.5);
     c.add(this.musicStatus);
-    const labels = ['Elegir una canción de mi ordenador…', 'Usar la banda sonora original', 'Volver'];
+    const labels = ['Elegir una canción de mi dispositivo…', 'Usar la banda sonora original', 'Volver'];
     labels.forEach((l, i) => {
       const t = this.add.text(0, -60 + i * 72, l, { fontFamily: FONT_TITLE, fontSize: '34px', color: '#eaf6ff' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => this.selectMusic(i));
@@ -212,7 +215,7 @@ export class MenuScene extends Phaser.Scene {
       c.add(t);
     });
     c.add(this.add.text(0, 200,
-      'Tu canción se guarda solo en este navegador: no se sube a ningún sitio.\nAl empezar suena lejana y amortiguada, y se abre con cada fragmento que encuentras.',
+      'Se guarda solo en este navegador (en cada dispositivo hay que elegirla una vez) y no se sube a ningún sitio.\nEn el menú suena entera; en el nivel empieza suave y se abre con cada fragmento que encuentras.',
       { fontFamily: FONT_UI, fontSize: '19px', color: '#9fc4e6', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     this.refreshMusic();
     return c;

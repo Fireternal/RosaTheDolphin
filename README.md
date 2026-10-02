@@ -26,6 +26,13 @@ npm run dev        # http://localhost:5173
 npm run build      # typecheck + build de producción en dist/
 ```
 
+## Móvil y tablet
+
+Se juega en horizontal (si el móvil está en vertical aparece un aviso para girarlo). El primer toque pone el
+juego a pantalla completa y lo gira a horizontal donde el navegador lo permite (Android). Controles táctiles:
+joystick a la izquierda (arrastra el dedo; al fondo, nada más rápido), botones **IMPULSO**, **SONAR** y **E**
+a la derecha, **II** para pausa/salir de un puzle, y las notas de los puzles se tocan con el dedo.
+
 ## Controles
 
 | Tecla | Acción |
@@ -62,7 +69,7 @@ de mar que la acompaña, da pistas según el progreso (E junto a ella). El progr
 
 ## Tu propia música
 
-Menú → **MÚSICA** → «Elegir una canción de mi ordenador…». La canción sustituye a la banda sonora
+Menú → **MÚSICA** → «Elegir una canción de mi dispositivo…». La canción sustituye a la banda sonora
 generada: empieza lejana y amortiguada y se abre con cada fragmento, hasta sonar completa en el final.
 Se guarda solo en el navegador (IndexedDB), no se sube a ningún sitio ni forma parte del juego publicado.
 «Usar la banda sonora original» vuelve a la música de Rosa.

@@ -17,10 +17,24 @@
       }
       #fullscreen:hover, #fullscreen:focus-visible { opacity: 1; }
       #fullscreen svg { width: 22px; height: 22px; }
+      #rotate {
+        display: none; position: fixed; inset: 0; z-index: 20; background: #031024; color: #f6cf6b;
+        flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center;
+        font-family: Georgia, serif; font-style: italic; font-size: 22px; padding: 24px;
+      }
+      #rotate svg { width: 72px; height: 72px; animation: turn 2.4s ease-in-out infinite; }
+      @keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+      @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+      @media (pointer: coarse) { #fullscreen { width: 52px; height: 52px; opacity: 0.8; } }
+      :fullscreen #fullscreen { opacity: 0.25; }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Gira el móvil para jugar con Rosa
+    </div>
     <button id="fullscreen" type="button" title="Pantalla completa (F)" aria-label="Pantalla completa">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
     </button>

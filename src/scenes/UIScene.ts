@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { FONT_TITLE, FONT_UI, GOLD, GOLD_CSS, NOTE_INFO, NOTE_ORDER, NoteName, WARM_CSS } from '../config';
 import { bus, EV } from '../core/EventBus';
+import { centerLayout, isTouchDevice } from '../core/layout';
+import { TouchControls } from '../systems/TouchControls';
 import { AudioManager } from '../systems/AudioManager';
 import type { GratitudeMission, GratitudePresenter } from '../systems/GratitudeSystem';
 import type { ObjectivePresenter } from '../systems/ObjectiveSystem';
@@ -93,6 +95,9 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   private gameRef: { handleEscape(): boolean; goToMenu(): void } | null = null;
 
   private pressedCodes = new Set<string>();
+  private corners: { TL: Phaser.GameObjects.Container; TR: Phaser.GameObjects.Container; BL: Phaser.GameObjects.Container; BR: Phaser.GameObjects.Container } | null = null;
+  /** On-screen joystick and buttons (phones / tablets only). */
+  touch: TouchControls | null = null;
 
   constructor() {
     super('UIScene');
@@ -124,10 +129,14 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.input.keyboard!.on('keydown', onKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.keyboard?.off('keydown', onKey));
 
+    this.corners = null;
+    this.touch = null;
     this.buildHud();
     this.buildDialogue();
     this.buildPuzzlePanel();
     this.buildPause();
+    if (isTouchDevice()) this.touch = new TouchControls(this, () => this.onTouchPause());
+    centerLayout(this, (ox, oy) => this.layoutCorners(ox, oy));
     this.input.on('pointerdown', () => {
       if (this.dialogueActive) this.advanceDialogue();
       else if (this.overlayActive && this.time.now > this.overlayCanSkipAt) this.closeOverlay();
@@ -138,14 +147,21 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   private buildHud(): void {
     this.hud = this.add.container(0, 0);
-    this.hud.add(this.add.image(190, 110, 'shade').setDisplaySize(620, 300).setAlpha(0.8));
-    this.hud.add(this.add.image(1700, 80, 'shade').setDisplaySize(720, 230).setAlpha(0.8));
-    this.hud.add(this.add.image(150, 1010, 'shade').setDisplaySize(420, 200).setAlpha(0.6));
+    // four corner groups so the HUD hugs the real screen edges on any aspect ratio
+    const TL = this.add.container(0, 0);
+    const TR = this.add.container(0, 0);
+    const BL = this.add.container(0, 0);
+    const BR = this.add.container(0, 0);
+    this.corners = { TL, TR, BL, BR };
+    this.hud.add([TL, TR, BL, BR]);
+    TL.add(this.add.image(190, 110, 'shade').setDisplaySize(620, 300).setAlpha(0.8));
+    TR.add(this.add.image(1700, 80, 'shade').setDisplaySize(720, 230).setAlpha(0.8));
+    BL.add(this.add.image(150, 1010, 'shade').setDisplaySize(420, 200).setAlpha(0.6));
     const title = this.add.text(48, 34, 'ROSA THE DOLPHIN', { fontFamily: FONT_TITLE, fontSize: '30px', color: GOLD_CSS, fontStyle: 'italic' })
       .setShadow(0, 0, 'rgba(255,200,90,0.55)', 12, false, true).setLetterSpacing(3);
-    this.hud.add(title);
+    TL.add(title);
     const sub = this.add.text(50, 72, 'MELODÍA', { fontFamily: FONT_UI, fontSize: '14px', color: '#cfe6ff' }).setLetterSpacing(5).setAlpha(0.75);
-    this.hud.add(sub);
+    TL.add(sub);
 
     for (let i = 0; i < 7; i++) {
       const x = 70 + i * 52;
@@ -154,18 +170,18 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       const ring = this.add.image(x, y, 'ring').setScale(0.5).setAlpha(0.55).setTint(0xcfe6ff);
       const glyph = this.add.image(x, y, 'glyph').setScale(0.34).setAlpha(0);
       const label = this.add.text(x, y + 30, '', { fontFamily: FONT_UI, fontSize: '13px', color: '#ffffff' }).setOrigin(0.5).setAlpha(0);
-      this.hud.add([glow, ring, glyph, label]);
+      TL.add([glow, ring, glyph, label]);
       this.slots.push({ ring, glyph, glow, label, filled: false });
     }
 
     this.thanksHeart = this.add.image(58, 178, 'heart').setScale(0.38).setTint(0xff9ab0).setAlpha(0.9);
     this.thanksText = this.add.text(76, 178, 'Gracias recibidas: 0', { fontFamily: FONT_UI, fontSize: '16px', color: '#ffd7e0' }).setOrigin(0, 0.5).setAlpha(0.9);
-    this.hud.add([this.thanksHeart, this.thanksText]);
+    TL.add([this.thanksHeart, this.thanksText]);
 
     NOTE_ORDER.forEach((n, i) => {
       const t = this.add.text(50 + i * 44, 208, n, { fontFamily: FONT_TITLE, fontSize: '16px', color: NOTE_INFO[n].css }).setAlpha(0.18);
       this.notesRow.push(t);
-      this.hud.add(t);
+      TL.add(t);
     });
 
     // objective (top right)
@@ -173,20 +189,41 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.objText = this.add.text(1872, 62, '', { fontFamily: FONT_UI, fontSize: '22px', color: '#eef7ff', align: 'right', wordWrap: { width: 520 } })
       .setOrigin(1, 0).setShadow(0, 2, 'rgba(0,10,30,0.8)', 6);
     this.objProgress = this.add.text(1872, 100, '', { fontFamily: FONT_TITLE, fontSize: '30px', color: GOLD_CSS }).setOrigin(1, 0);
-    this.hud.add([this.objTitle, this.objText, this.objProgress]);
+    TR.add([this.objTitle, this.objText, this.objProgress]);
 
-    // sonar + contextual prompt (bottom left)
+    // sonar + contextual prompt (bottom left) — keyboard players only; touch has its own buttons
     this.sonarArc = this.add.graphics();
     this.sonarText = this.add.text(92, 1024, 'Q — SONAR', { fontFamily: FONT_UI, fontSize: '19px', color: '#cfefff' }).setOrigin(0, 0.5).setLetterSpacing(2);
     this.promptText = this.add.text(48, 970, '', { fontFamily: FONT_UI, fontSize: '24px', color: '#ffffff', backgroundColor: 'rgba(4,20,44,0.55)', padding: { x: 14, y: 8 } })
       .setOrigin(0, 0.5).setLetterSpacing(2).setAlpha(0);
     const help = this.add.text(1872, 1036, 'ESC — pausa   ·   M — silencio   ·   F — pantalla completa', { fontFamily: FONT_UI, fontSize: '14px', color: '#9fc4e6' }).setOrigin(1, 0.5).setAlpha(0.55);
-    this.hud.add([this.sonarArc, this.sonarText, this.promptText, help]);
+    BL.add([this.sonarArc, this.sonarText, this.promptText]);
+    BR.add(help);
+    if (isTouchDevice()) {
+      BL.setVisible(false);
+      help.setVisible(false);
+    }
     this.setSonar(1);
+  }
+
+  /** Re-anchors the HUD corners when the screen shape changes. */
+  private layoutCorners(ox: number, oy: number): void {
+    const c = this.corners;
+    if (!c) return;
+    const touch = isTouchDevice();
+    const touchShift = touch ? -110 : 0;
+    // bigger HUD on phones so it stays readable on a small screen
+    const k = touch ? 1.3 : 1;
+    c.TL.setPosition(-ox, -oy).setScale(k);
+    c.TR.setPosition(ox + touchShift + 1920 * (1 - k), -oy).setScale(k);
+    c.BL.setPosition(-ox, oy);
+    c.BR.setPosition(ox, oy);
+    this.touch?.layout(ox, oy);
   }
 
   setHudVisible(v: boolean, ms = 600): void {
     this.tweens.add({ targets: this.hud, alpha: v ? 1 : 0, duration: ms });
+    this.touch?.setVisible(v);
   }
 
   setFragments(slots: (NoteName | null)[], animateIndex = -1): void {
@@ -398,7 +435,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.pzTitle = this.add.text(0, -128, '', { fontFamily: FONT_TITLE, fontSize: '26px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5, 0);
     this.pzState = this.add.text(0, -92, '', { fontFamily: FONT_UI, fontSize: '20px', color: '#dff3ff' }).setOrigin(0.5, 0).setLetterSpacing(2);
     this.pzSlotRow = this.add.container(0, -36);
-    this.pzHint = this.add.text(0, 128, 'E — escuchar otra vez   ·   ESC — salir', { fontFamily: FONT_UI, fontSize: '15px', color: '#9fc4e6' }).setOrigin(0.5).setAlpha(0.8);
+    this.pzHint = this.add.text(0, 128, isTouchDevice() ? 'E — escuchar otra vez   ·   II — salir' : 'E — escuchar otra vez   ·   ESC — salir', { fontFamily: FONT_UI, fontSize: '15px', color: '#9fc4e6' }).setOrigin(0.5).setAlpha(0.8);
     this.pz.add([bg, this.pzTitle, this.pzState, this.pzSlotRow, this.pzHint]);
 
     NOTE_ORDER.forEach((n, i) => {
@@ -433,6 +470,8 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   showPuzzle(label: string, length: number, known: NoteName[]): void {
     this.puzzleVisible = true;
+    this.touch?.setPuzzleMode(true);
+    this.touch?.setInteractAvailable(true);
     this.pzTitle.setText(label);
     this.pzSlotRow.removeAll(true);
     this.pzSlots = [];
@@ -497,6 +536,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   hidePuzzle(): void {
     if (!this.puzzleVisible) return;
     this.puzzleVisible = false;
+    this.touch?.setPuzzleMode(false);
     this.tweens.add({ targets: this.pz, alpha: 0, duration: 250, onComplete: () => this.pz.setVisible(false) });
   }
 
@@ -524,7 +564,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   private warmThanks(m: GratitudeMission): Promise<void> {
     return new Promise((resolve) => {
-      const dim = this.add.rectangle(960, 540, 1920, 1080, 0x020a1a, 0).setDepth(10);
+      const dim = this.add.rectangle(960, 540, 5000, 3000, 0x020a1a, 0).setDepth(10);
       const c = this.add.container(960, 470).setAlpha(0).setDepth(11);
       const glow = this.add.image(0, 10, 'glow').setScale(5, 1.6).setTint(0xffc46a).setBlendMode(ADD).setAlpha(0.35);
       const who = this.add.text(0, -70, m.thanker.toUpperCase(), { fontFamily: FONT_UI, fontSize: '20px', color: '#ffd7e0' }).setOrigin(0.5).setLetterSpacing(6);
@@ -554,7 +594,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   private grandThanks(m: GratitudeMission): Promise<void> {
     return new Promise((resolve) => {
-      const dim = this.add.rectangle(960, 540, 1920, 1080, 0x020a1a, 0).setDepth(10);
+      const dim = this.add.rectangle(960, 540, 5000, 3000, 0x020a1a, 0).setDepth(10);
       const rays = this.add.container(960, 470).setDepth(10).setAlpha(0);
       for (let i = 0; i < 14; i++) {
         const r = this.add.image(0, 0, 'ray').setOrigin(0.5, 1).setScale(0.7, 0.9).setTint(0xffd88a).setBlendMode(ADD).setAlpha(0.35);
@@ -712,12 +752,17 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   }
 
   showControlsHint(): void {
-    const lines = [
-      'WASD / FLECHAS — nadar',
-      'SHIFT — nadar rápido   ·   ESPACIO — impulso',
-      'Q — sonar musical   ·   E — interactuar   ·   1-7 — tocar notas',
-    ];
-    const c = this.add.container(960, 990).setAlpha(0);
+    const lines = isTouchDevice()
+      ? [
+          'Arrastra el dedo a la izquierda para nadar (más lejos = más rápido)',
+          'IMPULSO para acelerar y saltar   ·   SONAR para descubrir secretos   ·   E para interactuar',
+        ]
+      : [
+          'WASD / FLECHAS — nadar',
+          'SHIFT — nadar rápido   ·   ESPACIO — impulso',
+          'Q — sonar musical   ·   E — interactuar   ·   1-7 — tocar notas',
+        ];
+    const c = this.add.container(960, isTouchDevice() ? 300 : 990).setAlpha(0).setDepth(5);
     lines.forEach((l, i) => c.add(this.add.text(0, i * 28 - 28, l, { fontFamily: FONT_UI, fontSize: '19px', color: '#dff3ff' }).setOrigin(0.5).setLetterSpacing(1)));
     this.tweens.add({ targets: c, alpha: 0.9, duration: 800 });
     this.tweens.add({ targets: c, alpha: 0, delay: 9000, duration: 1500, onComplete: () => c.destroy() });
@@ -727,7 +772,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   private buildPause(): void {
     this.pausePanel = this.add.container(960, 540).setVisible(false).setDepth(30);
-    const dim = this.add.rectangle(0, 0, 1920, 1080, 0x020a1a, 0.7).setInteractive();
+    const dim = this.add.rectangle(0, 0, 5000, 3000, 0x020a1a, 0.7).setInteractive();
     const title = this.add.text(0, -190, 'PAUSA', { fontFamily: FONT_TITLE, fontSize: '56px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5).setLetterSpacing(8);
     this.pausePanel.add([dim, title]);
     const items = ['Continuar', 'Controles', 'Menú principal'];
@@ -766,7 +811,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       c.add(this.add.text(-20, -160 + i * 50, v, { fontFamily: FONT_UI, fontSize: '25px', color: '#eaf6ff' }).setOrigin(0, 0.5));
     });
     c.add(this.add.text(0, 245, 'ESC / clic para volver', { fontFamily: FONT_UI, fontSize: '17px', color: '#9fc4e6' }).setOrigin(0.5));
-    const z = this.add.zone(0, 0, 1920, 1080).setInteractive();
+    const z = this.add.zone(0, 0, 5000, 3000).setInteractive();
     z.on('pointerdown', () => c.setVisible(false));
     c.addAt(z, 0);
     return c;
@@ -785,6 +830,15 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       this.togglePause(false);
       this.gameRef?.goToMenu();
     }
+  }
+
+  private onTouchPause(): void {
+    if (this.paused) {
+      this.togglePause(false);
+      return;
+    }
+    if (this.dialogueActive || this.overlayActive) return;
+    if (!this.gameRef?.handleEscape()) this.togglePause(true);
   }
 
   togglePause(on: boolean): void {

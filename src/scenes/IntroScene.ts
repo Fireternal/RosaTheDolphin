@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { centerLayout } from '../core/layout';
 import { FONT_TITLE } from '../config';
 import { AudioManager } from '../systems/AudioManager';
 
@@ -11,6 +12,7 @@ export class IntroScene extends Phaser.Scene {
   }
 
   create(): void {
+    centerLayout(this);
     this.skipping = false;
     this.cameras.main.setBackgroundColor('#020a1a');
     const lines = [
@@ -22,7 +24,7 @@ export class IntroScene extends Phaser.Scene {
     const glow = this.add.image(960, 540, 'glow').setScale(6, 2).setTint(0x1f6fb0).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.4, duration: 3000, yoyo: true, repeat: -1 });
     const bubbles = this.add.particles(0, 1100, 'bubble', {
-      x: { min: 0, max: 1920 }, speedY: { min: -90, max: -40 }, scale: { min: 0.2, max: 0.5 }, alpha: { start: 0.5, end: 0 }, lifespan: 9000, frequency: 260,
+      x: { min: -700, max: 2620 }, speedY: { min: -90, max: -40 }, scale: { min: 0.2, max: 0.5 }, alpha: { start: 0.5, end: 0 }, lifespan: 9000, frequency: 260,
     });
     void bubbles;
     lines.forEach((l, i) => {

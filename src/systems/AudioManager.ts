@@ -129,6 +129,7 @@ class AudioManagerImpl {
   private songFilter: BiquadFilterNode | null = null;
   private songGain: GainNode | null = null;
   private songLevel = 0;
+  private songPreview = false;
   muted = false;
   fullMode = false;
 
@@ -660,6 +661,12 @@ class AudioManagerImpl {
     }
   }
 
+  /** Menu / ending: let the player's song play in full. */
+  setSongPreview(on: boolean): void {
+    this.songPreview = on;
+    this.applySongLevel(1.5);
+  }
+
   clearCustomSong(): void {
     this.stopSong();
     this.song = null;
@@ -696,9 +703,11 @@ class AudioManagerImpl {
 
   private applySongLevel(fade = 2.5): void {
     if (!this.ctx || !this.songFilter || !this.songGain) return;
-    const n = this.fullMode ? 8.5 : this.songLevel;
-    const cutoff = Math.min(20000, 420 * Math.pow(2, n * 0.72));
-    const gain = this.fullMode ? 0.9 : 0.34 + n * 0.06;
+    // in the menu the song plays in full; in the level it starts softly muffled
+    // (never below ~1.4 kHz, or phone speakers would make it inaudible) and opens up
+    const n = this.fullMode || this.songPreview ? 8.5 : this.songLevel;
+    const cutoff = Math.min(20000, 1400 * Math.pow(2, n * 0.56));
+    const gain = this.fullMode || this.songPreview ? 0.9 : 0.6 + n * 0.04;
     const t = this.ctx.currentTime;
     this.songFilter.frequency.cancelScheduledValues(t);
     this.songFilter.frequency.setTargetAtTime(cutoff, t, fade / 3);

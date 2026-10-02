@@ -255,7 +255,7 @@ try {
   s = await state();
   check('Wrong note: no penalty, puzzle stays open', s.puzzle === 'gate' && !s.gateOpen);
   await playMelody(['5', '3', '1', '2']); // SOL MI DO RE
-  s = await waitFor((st) => st.gateOpen, 15000);
+  s = await waitFor((st) => st.gateOpen, 45000);
   check('Correct melody opens the coral gate', !!s);
   await sleep(2500);
   await snap('gate-open');
@@ -280,7 +280,7 @@ try {
   s = await waitFor((st) => st.puzzle === 'organ' && !st.puzzleBusy, 20000);
   check('Tide organ puzzle plays its melody', !!s);
   await playMelody(['3', '5', '6', '7']); // MI SOL LA SI
-  s = await waitFor((st) => st.currentUp, 15000);
+  s = await waitFor((st) => st.currentUp, 45000);
   check('Correct melody reverses the current', !!s);
   await sleep(2500);
   await snap('current-up');

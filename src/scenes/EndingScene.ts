@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { centerLayout } from '../core/layout';
 import { FONT_TITLE, FONT_UI, GOLD_CSS, WARM_CSS } from '../config';
 import { AudioManager } from '../systems/AudioManager';
 import { SaveManager } from '../systems/SaveManager';
@@ -21,6 +22,7 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create(stats: Stats): void {
+    centerLayout(this);
     this.buttons = [];
     this.index = 0;
     this.ready = false;
@@ -28,7 +30,7 @@ export class EndingScene extends Phaser.Scene {
     AudioManager.setFullMode(true);
     this.cameras.main.fadeIn(1600, 2, 10, 26);
 
-    const dim = this.add.rectangle(960, 540, 1920, 1080, 0x020a1a, 0.35).setDepth(25);
+    const dim = this.add.rectangle(960, 540, 5000, 3000, 0x020a1a, 0.35).setDepth(25);
     void dim;
     const make = (y: number, text: string, size: number, color: string, delay: number, italic = true) => {
       const t = this.add.text(960, y, text, { fontFamily: FONT_TITLE, fontSize: `${size}px`, color, fontStyle: italic ? 'italic' : 'bold', align: 'center' })

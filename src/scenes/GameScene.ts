@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, GOLD_CSS, LAYER_NAMES, NOTE_INFO, NOTE_ORDER, NoteName } from '../config';
 import { bus, EV } from '../core/EventBus';
 import { damp, dist, isDebug, wait } from '../core/util';
+import { isTouchDevice } from '../core/layout';
 import { FishSchool, Jellyfish, Lumi, Manta, Turtle } from '../entities/Creatures';
 import { InteractMarker } from '../entities/InteractMarker';
 import { MelodyFragment } from '../entities/MelodyFragment';
@@ -154,6 +155,7 @@ export class GameScene extends Phaser.Scene {
 
     AudioManager.unlock();
     AudioManager.startMusic();
+    AudioManager.setSongPreview(false);
     AudioManager.setFullMode(false);
     AudioManager.duck(1, 1);
     AudioManager.setNotePool(this.save.notes);
@@ -374,7 +376,9 @@ export class GameScene extends Phaser.Scene {
       const m = /^(?:Digit|Numpad)([1-7])$/.exec(code);
       if (m) noteSeq.push(NOTE_ORDER[Number(m[1]) - 1]);
     }
-    const pressed = { Q: has('KeyQ'), E: has('KeyE'), SPACE: has('Space') };
+    const touch = this.ui?.touch;
+    const tapped = touch?.consume() ?? { boost: false, sonar: false, interact: false };
+    const pressed = { Q: has('KeyQ') || tapped.sonar, E: has('KeyE') || tapped.interact, SPACE: has('Space') || tapped.boost };
     if (!this.ready) return;
 
     const uiBlocked = this.ui.dialogueActive || this.ui.paused;
@@ -387,6 +391,12 @@ export class GameScene extends Phaser.Scene {
       input.y = (k.DOWN.isDown || k.S.isDown ? 1 : 0) - (k.UP.isDown || k.W.isDown ? 1 : 0);
       input.sprint = k.SHIFT.isDown;
       input.boost = pressed.SPACE;
+      if (touch && (touch.axisX !== 0 || touch.axisY !== 0)) {
+        // analogue stick: pushing it all the way also sprints
+        input.x = touch.axisX;
+        input.y = touch.axisY;
+        input.sprint = Math.hypot(touch.axisX, touch.axisY) > 0.92;
+      }
     }
 
     const ev = this.rosa.update(dt, input, this.world);
@@ -401,6 +411,7 @@ export class GameScene extends Phaser.Scene {
         noteSeq.forEach((n) => this.playFreeNote(n));
         const it = this.nearestInteractable();
         this.ui.setPrompt(it ? it.label() : null);
+        touch?.setInteractAvailable(!!it);
         this.updateMarkers(dt, it);
         if (pressed.E && it) {
           AudioManager.uiMove();
@@ -633,7 +644,7 @@ export class GameScene extends Phaser.Scene {
     if (missing.length) {
       this.ui.puzzleState(`Te faltan notas: ${missing.join(' · ')}. Búscalas por la Rotonda.`, '#ffc7a8');
     } else {
-      this.ui.puzzleState('Tu turno: toca la melodía (1-7)', '#ffffff');
+      this.ui.puzzleState(isTouchDevice() ? 'Tu turno: toca las notas de la melodía' : 'Tu turno: toca la melodía (1-7)', '#ffffff');
     }
   }
 
