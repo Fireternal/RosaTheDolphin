@@ -180,7 +180,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.sonarText = this.add.text(92, 1024, 'Q — SONAR', { fontFamily: FONT_UI, fontSize: '19px', color: '#cfefff' }).setOrigin(0, 0.5).setLetterSpacing(2);
     this.promptText = this.add.text(48, 970, '', { fontFamily: FONT_UI, fontSize: '24px', color: '#ffffff', backgroundColor: 'rgba(4,20,44,0.55)', padding: { x: 14, y: 8 } })
       .setOrigin(0, 0.5).setLetterSpacing(2).setAlpha(0);
-    const help = this.add.text(1872, 1036, 'ESC — pausa   ·   M — silencio', { fontFamily: FONT_UI, fontSize: '14px', color: '#9fc4e6' }).setOrigin(1, 0.5).setAlpha(0.55);
+    const help = this.add.text(1872, 1036, 'ESC — pausa   ·   M — silencio   ·   F — pantalla completa', { fontFamily: FONT_UI, fontSize: '14px', color: '#9fc4e6' }).setOrigin(1, 0.5).setAlpha(0.55);
     this.hud.add([this.sonarArc, this.sonarText, this.promptText, help]);
     this.setSonar(1);
   }
@@ -759,7 +759,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       ['E', 'Interactuar / escuchar'],
       ['1 – 7', 'Tocar DO RE MI FA SOL LA SI'],
       ['ESC', 'Pausa / salir de un puzle'],
-      ['M', 'Silenciar sonido'],
+      ['M  ·  F', 'Silenciar  ·  Pantalla completa'],
     ];
     rows.forEach(([k, v], i) => {
       c.add(this.add.text(-60, -160 + i * 50, k, { fontFamily: FONT_UI, fontSize: '25px', color: GOLD_CSS }).setOrigin(1, 0.5));

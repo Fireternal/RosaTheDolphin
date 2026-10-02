@@ -9,10 +9,21 @@
       html, body { margin: 0; padding: 0; height: 100%; background: #020c1c; overflow: hidden; }
       #game { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
       canvas { display: block; }
+      #fullscreen {
+        position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+        width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
+        border: 1px solid rgba(246, 207, 107, 0.6); background: rgba(4, 20, 46, 0.55); color: #f6cf6b;
+        display: flex; align-items: center; justify-content: center; opacity: 0.55; transition: opacity 0.2s;
+      }
+      #fullscreen:hover, #fullscreen:focus-visible { opacity: 1; }
+      #fullscreen svg { width: 22px; height: 22px; }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <button id="fullscreen" type="button" title="Pantalla completa (F)" aria-label="Pantalla completa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

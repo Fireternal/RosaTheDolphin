@@ -177,7 +177,7 @@ export class MenuScene extends Phaser.Scene {
       ['E', 'Interactuar / escuchar'],
       ['1 – 7', 'Tocar DO · RE · MI · FA · SOL · LA · SI'],
       ['ESC', 'Pausa / salir de un puzle'],
-      ['M', 'Silenciar el sonido'],
+      ['M  ·  F', 'Silenciar  ·  Pantalla completa'],
     ];
     rows.forEach(([k, v], i) => {
       c.add(this.add.text(-70, -180 + i * 54, k, { fontFamily: FONT_UI, fontSize: '26px', color: GOLD_CSS }).setOrigin(1, 0.5));

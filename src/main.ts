@@ -16,9 +16,25 @@ const game = new Phaser.Game({
   width: GAME_W,
   height: GAME_H,
   backgroundColor: '#03142a',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, fullscreenTarget: document.documentElement },
   render: { antialias: true, powerPreference: 'high-performance' },
   scene: [BootScene, PreloadScene, MenuScene, IntroScene, GameScene, UIScene, EndingScene],
+});
+
+// Full screen: corner button or the F key (both are user gestures, as browsers require)
+const fsButton = document.getElementById('fullscreen');
+const toggleFullscreen = () => {
+  if (game.scale.isFullscreen) game.scale.stopFullscreen();
+  else game.scale.startFullscreen();
+  fsButton?.blur();
+};
+fsButton?.addEventListener('click', toggleFullscreen);
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
+});
+game.events.once(Phaser.Core.Events.READY, () => {
+  // browsers without the Fullscreen API (e.g. iPhone Safari) get no button
+  if (!game.device.fullscreen.available && fsButton) fsButton.style.display = 'none';
 });
 
 if (import.meta.env.DEV || isDebug()) {

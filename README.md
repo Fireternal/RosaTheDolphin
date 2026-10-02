@@ -38,6 +38,7 @@ npm run build      # typecheck + build de producción en dist/
 | 1–7 | Tocar DO RE MI FA SOL LA SI (también clicables durante un puzle) |
 | ESC | Pausa / salir de un puzle |
 | M | Silenciar |
+| F | Pantalla completa (también con el botón de arriba) |
 
 ## El nivel
 
