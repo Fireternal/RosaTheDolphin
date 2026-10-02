@@ -124,7 +124,15 @@ class AudioManagerImpl {
   private voiceEnds: number[] = [];
   private schedulingMusic = false;
   /** Optional song chosen by the player; replaces the procedural soundtrack. */
-  private song: { buffer: AudioBuffer; name: string } | null = null;
+  /** Rosa's official theme (public/music), loaded at start-up. */
+  private themeSong: { buffer: AudioBuffer; name: string } | null = null;
+  /** A song chosen by the player overrides the theme. */
+  private customSong: { buffer: AudioBuffer; name: string } | null = null;
+  private themeRequested = false;
+
+  private get song(): { buffer: AudioBuffer; name: string } | null {
+    return this.customSong ?? this.themeSong;
+  }
   private songSrc: AudioBufferSourceNode | null = null;
   private songFilter: BiquadFilterNode | null = null;
   private songGain: GainNode | null = null;
@@ -145,6 +153,7 @@ class AudioManagerImpl {
       // 'playback' asks the browser for larger audio buffers: fewer crackles when the game is busy
       this.ctx = new Ctor({ latencyHint: 'playback' });
       this.buildGraph();
+      void this.loadTheme();
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
@@ -615,6 +624,39 @@ class AudioManagerImpl {
     this.voice('chime', this.sfxBus, notes[Math.floor(Math.random() * notes.length)], this.now() + 0.005, 0.05, 0.05);
   }
 
+  /** "Wah wah wah waaah": the problem is still there. */
+  sadTrombone(): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t0 = this.now() + 0.05;
+    const notes: [number, number, number][] = [[67, 0, 0.42], [66, 0.45, 0.42], [65, 0.9, 0.42], [64, 1.35, 1.3]];
+    for (const [m, at, dur] of notes) {
+      const t = t0 + at;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = mtof(m - 12);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = dur > 1 ? 6 : 0.1;
+      const vg = ctx.createGain();
+      vg.gain.value = dur > 1 ? 4 : 0;
+      vib.connect(vg).connect(o.frequency);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(500, t);
+      lp.frequency.linearRampToValueAtTime(1300, t + 0.12);
+      lp.frequency.linearRampToValueAtTime(700, t + dur);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.16, t + 0.05);
+      g.gain.setTargetAtTime(0.0001, t + dur - 0.1, 0.08);
+      o.connect(lp).connect(g).connect(this.sfxBus);
+      o.start(t);
+      vib.start(t);
+      o.stop(t + dur + 0.4);
+      vib.stop(t + dur + 0.4);
+    }
+  }
+
   /** Sparkling "twinkle" run for the rainbow celebration. */
   celebrate(): void {
     if (!this.ctx) return;
@@ -639,8 +681,39 @@ class AudioManagerImpl {
 
   // ---------------------------------------------------------------- music
 
+  /** True once Rosa's official theme is decoded and ready. */
+  get hasTheme(): boolean {
+    return !!this.themeSong;
+  }
+
   get customSongName(): string | null {
-    return this.song?.name ?? null;
+    return this.customSong?.name ?? null;
+  }
+
+  /** Loads the official theme (OGG, or MP3 where OGG is not supported, e.g. Safari). */
+  private async loadTheme(): Promise<void> {
+    if (this.themeRequested || !this.ctx) return;
+    this.themeRequested = true;
+    const base = import.meta.env.BASE_URL;
+    for (const file of ['music/rosa-theme.ogg', 'music/rosa-theme.mp3']) {
+      try {
+        const res = await fetch(base + file);
+        if (!res.ok) continue;
+        const buffer = await this.ctx.decodeAudioData(await res.arrayBuffer());
+        this.themeSong = { buffer, name: 'Rosa the Dolphin — tema oficial' };
+        if (!this.customSong) this.useSong();
+        return;
+      } catch {
+        /* try the next format; if none works the procedural soundtrack keeps playing */
+      }
+    }
+  }
+
+  /** Switches from the procedural layers to the current song. */
+  private useSong(): void {
+    if (!this.ctx) return;
+    for (const [id, node] of this.layerNodes) if (id !== 'base') node.gain.setTargetAtTime(0, this.ctx.currentTime, 0.6);
+    if (this.schedulerId !== null) this.startSong();
   }
 
   /**
@@ -651,10 +724,8 @@ class AudioManagerImpl {
     if (!this.ctx) return false;
     try {
       const buffer = await this.ctx.decodeAudioData(data);
-      this.song = { buffer, name };
-      // the procedural layers would clash with the song: silence them
-      for (const [id, node] of this.layerNodes) if (id !== 'base') node.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
-      if (this.schedulerId !== null) this.startSong();
+      this.customSong = { buffer, name };
+      this.useSong();
       return true;
     } catch {
       return false;
@@ -667,11 +738,13 @@ class AudioManagerImpl {
     this.applySongLevel(1.5);
   }
 
+  /** Back to Rosa's official theme (or the procedural soundtrack if it could not load). */
   clearCustomSong(): void {
     this.stopSong();
-    this.song = null;
+    this.customSong = null;
     if (!this.ctx) return;
-    for (const [id, on] of this.layerOn) if (on) this.setLayer(id, true, 1.5);
+    if (this.themeSong) this.useSong();
+    else for (const [id, on] of this.layerOn) if (on) this.setLayer(id, true, 1.5);
   }
 
   private startSong(): void {

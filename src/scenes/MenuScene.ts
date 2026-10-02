@@ -46,8 +46,12 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5).setShadow(0, 0, 'rgba(255,170,60,0.8)', 18, true, true).setLetterSpacing(10).setDepth(30);
     const clef = this.add.image(560 + 300, 236, 'clef').setTint(GOLD).setScale(0.75).setDepth(30).setAlpha(0.9);
     this.tweens.add({ targets: clef, angle: { from: -6, to: 6 }, duration: 2400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.add.text(560, 470, 'Una aventura en busca de la melodía perdida', { fontFamily: FONT_TITLE, fontSize: '30px', color: '#e2f1ff', fontStyle: 'italic' })
+    this.add.text(560, 470, 'Una aventura en busca de la melodía perfecta', { fontFamily: FONT_TITLE, fontSize: '30px', color: '#e2f1ff', fontStyle: 'italic' })
       .setOrigin(0.5).setShadow(0, 2, 'rgba(0,10,30,0.9)', 8).setDepth(30);
+    const logo = this.add.image(1700, 210, 'logo_cd').setScale(0.36).setDepth(30).setAngle(4);
+    this.tweens.add({ targets: logo, angle: -2, y: 222, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.add.text(560, 512, 'con Rosa, presidenta de la Coalición Delfinaria', { fontFamily: FONT_UI, fontSize: '20px', color: '#9fc4e6' })
+      .setOrigin(0.5).setLetterSpacing(2).setDepth(30);
     [rosa, the].forEach((t, i) => this.tweens.add({ targets: t, alpha: { from: 0, to: 1 }, y: `+=${0}`, duration: 1400, delay: i * 300 }));
 
     const hasSave = SaveManager.hasSave();
@@ -206,7 +210,7 @@ export class MenuScene extends Phaser.Scene {
     c.add(this.add.text(0, -250, 'MÚSICA DE FONDO', { fontFamily: FONT_TITLE, fontSize: '42px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5).setLetterSpacing(6));
     this.musicStatus = this.add.text(0, -170, '', { fontFamily: FONT_UI, fontSize: '25px', color: '#eaf6ff', align: 'center', wordWrap: { width: 1000 } }).setOrigin(0.5);
     c.add(this.musicStatus);
-    const labels = ['Elegir una canción de mi dispositivo…', 'Usar la banda sonora original', 'Volver'];
+    const labels = ['Elegir una canción de mi dispositivo…', 'Usar el tema oficial de Rosa', 'Volver'];
     labels.forEach((l, i) => {
       const t = this.add.text(0, -60 + i * 72, l, { fontFamily: FONT_TITLE, fontSize: '34px', color: '#eaf6ff' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => this.selectMusic(i));
@@ -224,7 +228,7 @@ export class MenuScene extends Phaser.Scene {
   private refreshMusic(): void {
     if (!this.musicStatus?.active) return;
     const name = AudioManager.customSongName;
-    this.musicStatus.setText(name ? `Ahora suena: «${name}»` : 'Ahora suena: la banda sonora original de Rosa');
+    this.musicStatus.setText(name ? `Ahora suena: «${name}»` : 'Ahora suena: el tema oficial de Rosa the Dolphin');
   }
 
   private selectMusic(i: number): void {

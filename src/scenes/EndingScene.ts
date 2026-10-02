@@ -9,6 +9,8 @@ interface Stats {
   time: number;
   thanks: number;
   notes: number;
+  /** Problems that were really fixed (the satire's punchline). */
+  solved?: number;
 }
 
 export class EndingScene extends Phaser.Scene {
@@ -39,6 +41,7 @@ export class EndingScene extends Phaser.Scene {
       return t;
     };
     make(150, '¡Gracias, Rosa the Dolphin!', 40, WARM_CSS, 400);
+    this.add.image(1700, 260, 'logo_cd').setScale(0.3).setDepth(30).setAngle(4);
     make(330, 'MELODÍA I', 58, GOLD_CSS, 1600, false).setLetterSpacing(12);
     make(420, 'LA ROTONDA SUMERGIDA', 74, '#fff3d6', 2400, false).setLetterSpacing(8);
     make(510, 'COMPLETADA', 50, GOLD_CSS, 3200, false).setLetterSpacing(16);
@@ -49,6 +52,10 @@ export class EndingScene extends Phaser.Scene {
       `Gracias recibidas: ${stats?.thanks ?? 0}     ·     Notas descubiertas: ${stats?.notes ?? 7} / 7     ·     Tiempo: ${mins}:${String(secs).padStart(2, '0')}`,
       { fontFamily: FONT_UI, fontSize: '22px', color: '#dff3ff' }).setOrigin(0.5).setAlpha(0).setDepth(30);
     this.tweens.add({ targets: info, alpha: 0.9, delay: 4200, duration: 1000 });
+    const verdict = this.add.text(960, 700,
+      `Problemas resueltos de verdad: ${stats?.solved ?? 0}     ·     Según Rosa: todos`,
+      { fontFamily: FONT_TITLE, fontSize: '30px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5).setAlpha(0).setDepth(30);
+    this.tweens.add({ targets: verdict, alpha: 1, delay: 4800, duration: 1000 });
 
     const labels = ['VOLVER A JUGAR', 'MENÚ PRINCIPAL'];
     labels.forEach((l, i) => {
@@ -57,9 +64,9 @@ export class EndingScene extends Phaser.Scene {
       b.on('pointerover', () => this.select(i));
       b.on('pointerdown', () => this.activate(i));
       this.buttons.push(b);
-      this.tweens.add({ targets: b, alpha: 1, delay: 5000 + i * 200, duration: 800 });
+      this.tweens.add({ targets: b, alpha: 1, delay: 5600 + i * 200, duration: 800 });
     });
-    this.time.delayedCall(5000, () => {
+    this.time.delayedCall(5600, () => {
       this.ready = true;
       this.select(0);
     });

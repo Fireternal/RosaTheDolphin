@@ -31,11 +31,17 @@ export interface GratitudeMission {
   message: string;
   /** Extra lines shown after the thank-you. */
   followUps?: string[];
+  /**
+   * What actually happened. Rosa loves being thanked so much that she sometimes
+   * gets the thanks without fixing anything: this line shows the player the truth.
+   */
+  reality?: string;
   tone: GratitudeTone;
 }
 
 export interface GratitudePresenter {
   showGratitude(m: GratitudeMission): Promise<void>;
+  showReality?(text: string): Promise<void>;
 }
 
 export class GratitudeSystem {
@@ -78,5 +84,13 @@ export class GratitudeSystem {
     this.persist();
     AudioManager.gratitude(m.tone === 'grand');
     await this.presenter.showGratitude(m);
+  }
+
+  /** "Meanwhile…": shows that the problem is still there. */
+  async showReality(id: string): Promise<void> {
+    const m = this.missions.get(id);
+    if (!m?.reality || !this.presenter.showReality) return;
+    AudioManager.sadTrombone();
+    await this.presenter.showReality(m.reality);
   }
 }

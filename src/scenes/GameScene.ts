@@ -3,7 +3,7 @@ import { DEPTH, GOLD_CSS, LAYER_NAMES, NOTE_INFO, NOTE_ORDER, NoteName } from '.
 import { bus, EV } from '../core/EventBus';
 import { damp, dist, isDebug, wait } from '../core/util';
 import { isTouchDevice } from '../core/layout';
-import { FishSchool, Jellyfish, Lumi, Manta, Turtle } from '../entities/Creatures';
+import { DolphinPod, FishSchool, Jellyfish, Lumi, Manta, Turtle, TurtleQueue } from '../entities/Creatures';
 import { InteractMarker } from '../entities/InteractMarker';
 import { MelodyFragment } from '../entities/MelodyFragment';
 import { MusicalNote } from '../entities/MusicalNote';
@@ -57,6 +57,11 @@ export class GameScene extends Phaser.Scene {
   private schools: FishSchool[] = [];
   private jellies: Jellyfish[] = [];
   private manta!: Manta;
+  private turtleQueue!: TurtleQueue;
+  private locals!: DolphinPod;
+  private germans: DolphinPod | null = null;
+  private sewage!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private sewageHaze!: Phaser.GameObjects.Image;
   private puzzles!: { gate: MusicPuzzle; organ: MusicPuzzle; final: MusicPuzzle };
   private activePuzzle: MusicPuzzle | null = null;
   private puzzleBusy = false;
@@ -204,6 +209,54 @@ export class GameScene extends Phaser.Scene {
 
     for (const [x, y] of [[5960, 470], [6090, 520], [6020, 380], [5700, 700], [6300, 820]]) this.jellies.push(new Jellyfish(this, x, y));
     this.manta = new Manta(this, RING.cx + 300, RING.cy - 520, 1700, 180);
+
+    // the famous queues of La Rotonda
+    this.turtleQueue = new TurtleQueue(this, RING.cx, RING.cy + 80, RING.rx + 120, RING.ry + 150, 22);
+    // a dolphin family with nowhere to live, waiting by the closed grotto
+    this.locals = new DolphinPod(this, 'dolphin_local', [{ x: 4930, y: 2330 }, { x: 5020, y: 2400 }, { x: 4860, y: 2420 }]);
+    this.germans = null;
+    this.createSewage();
+  }
+
+  /** The Tower's outfall pours sewage into the sea. */
+  private createSewage(): void {
+    this.add.image(6420, 1500, 'pipe').setOrigin(1, 0.5).setDepth(DEPTH.MID_FRONT + 3);
+    this.sewageHaze = this.add.image(5750, 1620, 'glow').setTint(0x4a3a18).setScale(6, 4).setAlpha(0.5).setDepth(DEPTH.MID_FRONT + 2);
+    this.sewage = this.makeSewage(false);
+  }
+
+  private makeSewage(strong: boolean): Phaser.GameObjects.Particles.ParticleEmitter {
+    return this.add.particles(6070, 1500, 'softdot', {
+      speedX: strong ? { min: -340, max: -90 } : { min: -150, max: -40 },
+      speedY: { min: -20, max: strong ? 120 : 60 },
+      scale: { start: strong ? 2.4 : 1.6, end: strong ? 8 : 5 },
+      alpha: { start: 0.85, end: 0 },
+      lifespan: strong ? 6500 : 5500,
+      frequency: strong ? 14 : 70,
+      tint: [0x4a3a14, 0x5c4618, 0x6b5221, 0x3d3010],
+    }).setDepth(DEPTH.MID_FRONT + 2);
+  }
+
+  /** The new "Great Outfall Pump": three times more sewage. */
+  private moreSewage(instant: boolean): void {
+    this.sewage.stop();
+    const old = this.sewage;
+    this.time.delayedCall(7000, () => old.destroy());
+    this.sewage = this.makeSewage(true);
+    if (instant) {
+      this.sewageHaze.setScale(12, 7).setAlpha(0.75);
+      return;
+    }
+    this.tweens.add({ targets: this.sewageHaze, scaleX: 12, scaleY: 7, alpha: 0.75, duration: 3000 });
+    this.particles.bubble(6070, 1500, 30);
+    AudioManager.rumble(2);
+  }
+
+  /** Homes inside the grotto, taken by the visitors. */
+  private grottoHomes(): { x: number; y: number }[] {
+    const homes: { x: number; y: number }[] = [];
+    for (let i = 0; i < 14; i++) homes.push({ x: 5450 + (i % 7) * 135 + (i > 6 ? 60 : 0), y: 2200 + Math.floor(i / 7) * 230 + (i % 2) * 60 });
+    return homes;
   }
 
   private createCollectibles(): void {
@@ -250,12 +303,12 @@ export class GameScene extends Phaser.Scene {
       {
         id: 'conch', markerY: -150, invite: true, pos: () => ({ x: CONCH.x, y: CONCH.y - 120 }), radius: 260,
         label: () => 'E — ESCUCHAR', enabled: () => !this.puzzles.gate.solved,
-        action: () => void this.startPuzzle(this.puzzles.gate),
+        action: () => void this.startGatePuzzle(),
       },
       {
         id: 'organ', markerY: -200, invite: true, pos: () => ({ x: ORGAN.x, y: ORGAN.y - 150 }), radius: 280,
         label: () => 'E — ESCUCHAR', enabled: () => !this.puzzles.organ.solved,
-        action: () => void this.startPuzzle(this.puzzles.organ),
+        action: () => void this.startOrganPuzzle(),
       },
       {
         id: 'clam', markerY: -110, invite: true, pos: () => ({ x: CLAM.x, y: CLAM.y - 80 }), radius: 240,
@@ -326,7 +379,10 @@ export class GameScene extends Phaser.Scene {
     if (f.clamOpen) this.openClam(true);
     if (this.gratitude.isDone('bruno')) this.reuniteTurtles(true);
     if (this.puzzles.gate.solved) this.openGate(true);
-    if (this.puzzles.organ.solved) this.reverseCurrent(true);
+    if (this.puzzles.organ.solved) {
+      this.reverseCurrent(true);
+      this.moreSewage(true);
+    }
     if (this.save.fragments.length >= 7) this.awakenStatue(true);
     if (this.save.completed) this.restoreRotonda(true);
     for (const fr of this.fragments) {
@@ -485,6 +541,9 @@ export class GameScene extends Phaser.Scene {
     for (const s of this.schools) s.update(dt, this.rosa.x, this.rosa.y);
     for (const j of this.jellies) j.update(dt);
     this.manta.update(dt);
+    this.turtleQueue.update(dt, cam.worldView);
+    this.locals.update(dt);
+    this.germans?.update(dt);
 
     // hidden things shimmer when Rosa is close
     this.hintTime += dt;
@@ -741,15 +800,58 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private async startGatePuzzle(): Promise<void> {
+    if (!this.save.flags.gateIntro) {
+      this.busy = true;
+      await this.ui.say([
+        { who: 'Familia Delfín', text: '¡Presidenta! No encontramos cueva donde vivir. Las pocas que hay están cerradas o carísimas.' },
+        { who: 'Familia Delfín', text: 'Esa gruta lleva años cerrada detrás de la Puerta de Coral…' },
+        { who: 'Rosa', text: '¡Tengo la solución! Una melodía, y la gruta será vuestra. Bueno… de alguien.' },
+      ]);
+      this.save.flags.gateIntro = true;
+      this.busy = false;
+    }
+    await this.startPuzzle(this.puzzles.gate);
+  }
+
+  private async startOrganPuzzle(): Promise<void> {
+    if (!this.save.flags.organIntro) {
+      this.busy = true;
+      await this.ui.say([
+        { who: 'Lumi', text: 'Presidenta, el emisario de la Torre lleva meses vertiendo aguas residuales al mar. Los vecinos están hartos.' },
+        { who: 'Rosa', text: 'Con esta bomba antigua y mi melodía, lo arreglo en un periquete. ¡Que vayan preparando la inauguración!' },
+      ]);
+      this.save.flags.organIntro = true;
+      this.busy = false;
+    }
+    await this.startPuzzle(this.puzzles.organ);
+  }
+
   private async solveGate(): Promise<void> {
     this.busy = true;
-    await this.cinematicTo(GROTTO.gate.x + 200, 2300, 900);
+    await this.cinematicTo(GROTTO.gate.x + 250, 2250, 900);
     this.openGate(false);
-    await wait(this, 2600);
+    await wait(this, 1800);
+    // …and a whole pod of German dolphins moves in
+    this.germans = new DolphinPod(this, 'dolphin_de', this.grottoHomes(), { x: 4700, y: 1500 });
+    this.germans.arrive({ x: GROTTO.gate.x + 60, y: 2400 });
+    this.locals.shift(-260, 40);
+    await wait(this, 5200);
+    this.showGrottoFull();
+    await this.ui.say([{ who: 'Rosa', text: '¡Problema de vivienda resuelto! Qué bien se me da esto.' }]);
     await this.gratitude.thank('gate');
     this.ui.setGratitudeCount(this.gratitude.count, true);
+    await this.gratitude.showReality('gate');
+    await this.ui.say([{ who: 'Familia Delfín', text: '¿Y nosotros…?' }]);
     this.endCinematic();
     this.busy = false;
+  }
+
+  private showGrottoFull(): void {
+    const sign = this.add.text(GROTTO.gate.x + 330, GROTTO.ceiling.y + GROTTO.ceiling.h + 40, 'COMPLETO', {
+      fontFamily: '"Trebuchet MS", Arial, sans-serif', fontSize: '34px', color: '#ffffff', backgroundColor: '#c0392b', padding: { x: 16, y: 8 },
+    }).setOrigin(0.5, 0).setDepth(DEPTH.FLOOR + 3).setRotation(-0.06);
+    this.tweens.add({ targets: sign, scale: { from: 0, to: 1 }, duration: 500, ease: 'Back.easeOut' });
   }
 
   private openGate(instant: boolean): void {
@@ -759,7 +861,9 @@ export class GameScene extends Phaser.Scene {
       b.gateCorals.forEach((c, i) => c.setPosition(c.x + (i % 2 ? 170 : -170), c.y + 60).setScale(0.55).clearTint());
       b.grottoLight.setAlpha(0.5);
       b.bloomInstant('gate');
-      this.spawnClownfish(false);
+      this.germans = new DolphinPod(this, 'dolphin_de', this.grottoHomes());
+      this.locals.shift(-260, 40);
+      this.showGrottoFull();
       return;
     }
     AudioManager.rumble(2);
@@ -775,23 +879,19 @@ export class GameScene extends Phaser.Scene {
     });
     this.tweens.add({ targets: b.grottoLight, alpha: 0.5, duration: 2000, delay: 600 });
     this.time.delayedCall(700, () => b.bloom('gate', GROTTO.gate.x, 2400, 2000));
-    this.time.delayedCall(1400, () => this.spawnClownfish(true));
-  }
-
-  private spawnClownfish(fromGrotto: boolean): void {
-    const area = new Phaser.Geom.Rectangle(4700, 2050, 1500, 600);
-    const s = new FishSchool(this, area, 9, 'fish_1', 1.05, fromGrotto ? 5900 : undefined, fromGrotto ? 2450 : undefined);
-    this.schools.push(s);
-    this.sonar.add({ get x() { return s.x; }, get y() { return s.y; }, onSonar: (p) => s.scatter(p.x, p.y) });
   }
 
   private async solveOrgan(): Promise<void> {
     this.busy = true;
     await this.cinematicTo(TOWER.x0 - 60, 820, 900);
     this.reverseCurrent(false);
-    await wait(this, 2800);
+    this.moreSewage(false);
+    this.cameras.main.pan(5900, 1450, 1600, 'Sine.easeInOut');
+    await wait(this, 3200);
+    await this.ui.say([{ who: 'Rosa', text: '¡Maravilloso trabajo! Otro problema resuelto. Apuntadlo para la campaña.' }]);
     await this.gratitude.thank('organ');
     this.ui.setGratitudeCount(this.gratitude.count, true);
+    await this.gratitude.showReality('organ');
     this.endCinematic();
     this.busy = false;
   }
@@ -835,16 +935,17 @@ export class GameScene extends Phaser.Scene {
     this.updateObjective();
     while (this.busy || this.ui.dialogueActive || this.activePuzzle) await wait(this, 300);
     await this.ui.say([
-      { who: 'Lumi', text: '¡Los siete fragmentos! ¿Lo oyes, Rosa? Algo vibra en el centro de la Rotonda.' },
-      { who: 'Lumi', text: 'Mira el bastón de la estatua: ¡está brillando! Vamos, la melodía tiene que sonar allí.' },
+      { who: 'Lumi', text: '¡Los siete fragmentos, presidenta! Algo vibra en el centro de la Rotonda.' },
+      { who: 'Lumi', text: 'El bastón de la estatua brilla. Si toca allí la melodía, podrá inaugurar la Rotonda… y acabar con las colas.' },
+      { who: 'Rosa', text: '¡Una inauguración! Que vengan todos. Y que traigan muchas ganas de dar las gracias.' },
     ]);
   }
 
   private interactStatue(): void {
     if (!this.statueAwake) {
       void this.ui.say([
-        { who: 'Rosa', text: 'La estatua guarda silencio… como si estuviera esperando algo.' },
-        { who: 'Lumi', text: `Cuando reúnas los siete fragmentos, ella sabrá escucharte. Llevas ${this.save.fragments.length} de 7.` },
+        { who: 'Rosa', text: 'La estatua guarda silencio… Ni siquiera me ha dado las gracias por venir.' },
+        { who: 'Lumi', text: `Cuando reúna los siete fragmentos, ella sabrá escucharla. Lleva ${this.save.fragments.length} de 7.` },
       ]);
       return;
     }
@@ -856,8 +957,8 @@ export class GameScene extends Phaser.Scene {
     this.lumi.anchor = { x: this.rosa.x - 170, y: this.rosa.y - 80 };
     if (!this.save.flags.finalIntro) {
       await this.ui.say([
-        { who: 'Lumi', text: '¡La estatua está escuchando! Escucha tú también…' },
-        { who: 'Rosa', text: 'Es nuestra melodía. Cada fragmento, una nota. SOL, LA, SOL, MI, FA, RE, DO.' },
+        { who: 'Lumi', text: '¡La estatua está escuchando! Toda la Rotonda está pendiente de usted, presidenta.' },
+        { who: 'Rosa', text: 'Mi melodía perfecta. Cada fragmento, una nota: SOL, LA, SOL, MI, FA, RE, DO. ¡Que suene a victoria!' },
       ]);
       this.save.flags.finalIntro = true;
     }
@@ -874,13 +975,13 @@ export class GameScene extends Phaser.Scene {
     this.lumi.anchor = { x: this.rosa.x + 220, y: this.rosa.y - 40 };
     await wait(this, 1800);
     await this.ui.say([
-      { who: 'Lumi', text: '¡Oh! ¿Eres… una delfina? ¿Con melena dorada?' },
-      { who: 'Rosa', text: 'Soy Rosa. Compongo melodías… y vengo buscando inspiración.' },
-      { who: 'Lumi', text: 'Yo soy Lumi. Esto es la Rotonda Sumergida. Antes aquí todo cantaba: las luces, los corales, las corrientes…' },
-      { who: 'Lumi', text: 'Pero una noche su melodía se rompió en siete fragmentos, y el silencio lo apagó todo.' },
-      { who: 'Rosa', text: 'Entonces la encontraremos. Fragmento a fragmento.' },
-      { who: 'Lumi', text: '¿De verdad? ¡Gracias, Rosa! Usa tu sonar (Q) para escuchar lo que se esconde, y toca las notas que encuentres con 1-7.' },
-      { who: 'Lumi', text: '¡Mira! Allí, al este, brilla algo. ¡Y esa nota roja de ahí arriba es un DO!' },
+      { who: 'Lumi', text: '¡Presidenta Rosa! Por fin la encuentro. Faltan muy poquitas semanas para las elecciones.' },
+      { who: 'Rosa', text: 'Lo sé, Lumi. Y todavía no tengo mi melodía perfecta.' },
+      { who: 'Lumi', text: 'Sin melodía no hay inauguraciones… y sin inauguraciones, nadie le da las gracias.' },
+      { who: 'Rosa', text: '¿Nadie? ¿Ni un «gracias, Rosa»? Eso no puede ser. Me encanta que me den las gracias.' },
+      { who: 'Lumi', text: 'En la Rotonda Sumergida hay una melodía rota en siete fragmentos. Y muchos problemas: colas de tortugas, aguas residuales, delfines sin cueva…' },
+      { who: 'Rosa', text: 'Perfecto. Lo arreglaré todo… o por lo menos haré que lo parezca. ¡A por esos fragmentos!' },
+      { who: 'Lumi', text: 'Use el sonar (Q) para encontrar lo escondido y toque las notas con 1-7. ¡Mire, allí al este brilla algo! Y esa nota roja es un DO.' },
     ]);
     this.save.flags.introDone = true;
     this.lumi.anchor = null;
@@ -894,8 +995,8 @@ export class GameScene extends Phaser.Scene {
   private lumiHint(): string {
     const s = this.save;
     const has = (id: string) => s.fragments.includes(id);
-    if (s.completed) return '¡Escucha! Toda la Rotonda canta contigo. Gracias otra vez, Rosa.';
-    if (s.fragments.length >= 7) return '¡Vamos a la estatua del centro! Acércate y pulsa E.';
+    if (s.completed) return '¡Qué inauguración, presidenta! Las colas siguen igual, pero… ¡cuántas gracias!';
+    if (s.fragments.length >= 7) return '¡A la estatua del centro! Allí se inaugura la Rotonda. Acérquese y pulse E.';
     if (!has('f-claro')) return 'El primer fragmento brillaba al este de aquí, en aguas abiertas. ¡Síguelo!';
     if (!s.notes.includes('MI') && s.notes.length >= 2) return 'Entre las algas del oeste, cerca del fondo, algo zumba en MI… pero no se ve. ¡Prueba el sonar!';
     if (!has('f-rampa')) return 'Bajo la gran rampa del oeste, junto al fondo, hay un brillo escondido. El sonar lo revela.';
@@ -903,10 +1004,10 @@ export class GameScene extends Phaser.Scene {
     if (!this.gratitude.isDone('bruno')) {
       return s.flags.metMarea
         ? 'Bruno es pequeño y curioso. A los pequeños les encanta esconderse entre las algas doradas de la superficie, al oeste.'
-        : 'Hay una tortuga muy preocupada junto al jardín de la estatua. Deberías hablar con ella.';
+        : 'Hay una tortuga muy preocupada junto al jardín de la estatua. Una votante, presidenta: hable con ella.';
     }
-    if (!this.puzzles.gate.solved) return 'Al este, en el fondo, la Puerta de Coral recuerda una melodía. Escucha la caracola (E) y repítela.';
-    if (!this.puzzles.organ.solved) return 'En la pasarela alta del este hay un órgano antiguo junto a la Torre de las Mareas. ¡Necesitarás LA y SI!';
+    if (!this.puzzles.gate.solved) return 'Al este, en el fondo, una familia busca casa junto a la Puerta de Coral. La caracola (E) recuerda una melodía.';
+    if (!this.puzzles.organ.solved) return 'Arriba al este, junto a la Torre, está la vieja bomba del emisario de aguas residuales. ¡Necesitará LA y SI!';
     if (!has('f-ola')) return 'Una vez vi un destello saltar por encima de las olas, justo sobre la Rotonda. ¡Coge carrerilla hacia arriba y pulsa ESPACIO!';
     if (!has('f-torre')) return 'La corriente de la Torre ya sube. ¡Déjate llevar hasta arriba!';
     return 'Sigue explorando: los fragmentos brillan en dorado.';
@@ -924,8 +1025,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.save.flags.metMarea) {
       await this.ui.say([
         { who: 'Doña Marea', text: 'Ay, querida… ¿no habrás visto a mi nieto Bruno? Es así de pequeñito, con el caparazón dorado.' },
-        { who: 'Doña Marea', text: 'Desde que la música se apagó, se asusta y se esconde. Subió hacia la superficie, al oeste, y no ha vuelto.' },
-        { who: 'Rosa', text: 'No se preocupe, Doña Marea. Yo lo traeré.' },
+        { who: 'Doña Marea', text: 'Llevábamos dos horas en la cola de la rotonda y se escapó nadando hacia la superficie, al oeste. ¡No ha vuelto!' },
+        { who: 'Rosa', text: 'No se preocupe, Doña Marea. Yo lo traeré. Y recuerde quién se lo trajo cuando vaya a votar.' },
       ]);
       this.save.flags.metMarea = true;
       this.persist();
@@ -1166,14 +1267,25 @@ export class GameScene extends Phaser.Scene {
     this.particles.heart(this.rosa.x, this.rosa.y - 80, 14);
     await this.gratitude.thank('rotonda');
     this.ui.setGratitudeCount(this.gratitude.count, true);
+    await this.ui.say([{ who: 'Rosa', text: '¡De nada, de nada! ¡Colas resueltas! Con esta melodía, las elecciones están ganadas.' }]);
+    // meanwhile, at the queue…
+    const q = this.turtleQueue.focus;
+    cam.pan(q.x, q.y - 40, 1800, 'Sine.easeInOut');
+    cam.zoomTo(0.8, 1800, 'Sine.easeInOut');
+    await wait(this, 1900);
+    this.turtleQueue.complainNear(q.x, q.y, '¿Ya está? Pues seguimos igual…');
+    await this.gratitude.showReality('rotonda');
+    cam.pan(this.rosa.x, this.rosa.y - 60, 1500, 'Sine.easeInOut');
+    await wait(this, 1500);
     await this.ui.say([
-      { who: 'Rosa', text: '¡De nada! Gracias a vosotros por dejarme escucharos.' },
-      { who: 'Lumi', text: 'Hay muchos más lugares que han perdido su melodía… ¿Vendrás otro día, Rosa?' },
-      { who: 'Rosa', text: 'Claro que sí. Siempre que alguien necesite una canción.' },
+      { who: 'Lumi', text: 'Presidenta… las tortugas siguen sin moverse.' },
+      { who: 'Rosa', text: 'Detalles, Lumi. ¿Has oído cómo me han dado las gracias? ¡Gracias, Rosa the Dolphin! Qué bien suena.' },
     ]);
     this.save.completed = true;
     this.persist();
-    const stats = { time: this.save.playTime, thanks: this.gratitude.count, notes: this.save.notes.length };
+    // only Bruno's reunion and the clam were really fixed
+    const solved = ['clam', 'bruno'].filter((id) => this.gratitude.isDone(id)).length;
+    const stats = { time: this.save.playTime, thanks: this.gratitude.count, notes: this.save.notes.length, solved };
     cam.fadeOut(1800, 2, 10, 26);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.stop('UIScene');
@@ -1212,6 +1324,7 @@ export class GameScene extends Phaser.Scene {
         objective: this.objectives?.text,
         audio: AudioManager.ctx?.state ?? 'none',
         song: AudioManager.customSongName,
+        theme: AudioManager.hasTheme,
       }),
       fragmentSpots: FRAGMENT_SPOTS,
       noteSpots: NOTE_SPOTS,

@@ -79,6 +79,18 @@ async function settle(timeout = 60000) {
     await sleep(350);
   }
 }
+/** Press E at a puzzle object, reading any intro dialogue, until the puzzle is ready for input. */
+async function openPuzzle(id, timeout = 60000) {
+  await press('e');
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    const st = await state();
+    if (st.puzzle === id && !st.puzzleBusy) return st;
+    if (st.dialogue) await press('e');
+    await sleep(400);
+  }
+  return null;
+}
 async function playMelody(digits) {
   for (const d of digits) {
     await press(d, 80);
@@ -246,8 +258,7 @@ try {
   check('The coral gate blocks the grotto before the puzzle', s.rosa.x < 5300, `x=${s.rosa.x}`);
   await teleport(5050, 2600);
   await waitFor((st) => st.prompt === 'conch', 8000);
-  await press('e');
-  s = await waitFor((st) => st.puzzle === 'gate' && !st.puzzleBusy, 20000);
+  s = await openPuzzle('gate');
   check('Coral gate puzzle plays its melody', !!s);
   await snap('puzzle-gate');
   await playMelody(['1']); // wrong on purpose (melody starts with SOL)
@@ -257,10 +268,10 @@ try {
   await playMelody(['5', '3', '1', '2']); // SOL MI DO RE
   s = await waitFor((st) => st.gateOpen, 45000);
   check('Correct melody opens the coral gate', !!s);
-  await sleep(2500);
+  await sleep(6000);
   await snap('gate-open');
-  await settle();
-  check('Clownfish family thanks Rosa', (await state()).missions.includes('gate'));
+  await settle(150000);
+  check('German dolphins thank Rosa (housing "solved")', (await state()).missions.includes('gate'));
   await teleport(5160, 2420);
   await page.keyboard.down('d');
   s = await waitFor((st) => st.fragments.includes('f-gruta') || st.rosa.x > 5600, 30000);
@@ -276,16 +287,15 @@ try {
   check('The downward current keeps Rosa out of the tower', s.rosa.y > 640, `y=${s.rosa.y}`);
   await teleport(5560, 1110);
   await waitFor((st) => st.prompt === 'organ', 8000);
-  await press('e');
-  s = await waitFor((st) => st.puzzle === 'organ' && !st.puzzleBusy, 20000);
-  check('Tide organ puzzle plays its melody', !!s);
+  s = await openPuzzle('organ');
+  check('Outfall pump puzzle plays its melody', !!s);
   await playMelody(['3', '5', '6', '7']); // MI SOL LA SI
   s = await waitFor((st) => st.currentUp, 45000);
   check('Correct melody reverses the current', !!s);
-  await sleep(2500);
+  await sleep(4000);
   await snap('current-up');
-  await settle();
-  check('Jellyfish thank Rosa', (await state()).missions.includes('organ'));
+  await settle(150000);
+  check('Inauguration commission thanks Rosa (more sewage)', (await state()).missions.includes('organ'));
   await teleport(6025, 1250);
   s = await waitFor((st) => st.fragments.includes('f-torre'), 40000);
   check('Current lifts Rosa to fragment 6', !!s);

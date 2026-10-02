@@ -61,6 +61,63 @@ export function makeFxTextures(scene: Phaser.Scene): void {
     ctx.fill();
   });
 
+  // Coalición Delfinaria: a star of three leaping dolphins. No badge — the text is
+  // white because every screen of the game has a dark background.
+  canvasTex(scene, 'logo_cd', 560, 600, (ctx, w) => {
+    /** One dolphin drawn horizontally: tail at (0,0), head to the right at about (300, 0). */
+    const dolphin = (x: number, y: number, rot: number, color: string, flipY = false): void => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.scale(0.62, flipY ? -0.62 : 0.62);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, -16);
+      ctx.bezierCurveTo(70, -26, 150, -40, 210, -44); // back
+      ctx.bezierCurveTo(250, -46, 280, -36, 296, -22); // melon
+      ctx.bezierCurveTo(314, -14, 330, -8, 338, -4); // rostrum
+      ctx.bezierCurveTo(318, 2, 298, 6, 280, 8); // jaw
+      ctx.bezierCurveTo(230, 16, 170, 30, 120, 52); // belly
+      ctx.bezierCurveTo(70, 72, 30, 70, 0, 16);
+      ctx.closePath();
+      ctx.fill();
+      // flipper
+      ctx.beginPath();
+      ctx.moveTo(190, 30);
+      ctx.bezierCurveTo(170, 60, 150, 90, 120, 104);
+      ctx.bezierCurveTo(150, 70, 160, 50, 160, 36);
+      ctx.closePath();
+      ctx.fill();
+      // eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(262, -20, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    const cx = w / 2;
+    const cy = 260;
+    // blue: leaps up and to the right from the centre
+    dolphin(cx - 44, cy + 30, -1.05, '#0aa0e6');
+    // grey: swims to the left
+    dolphin(cx - 44, cy + 40, Math.PI + 0.22, '#c3c4c7', true);
+    // yellow: swims to the right
+    dolphin(cx + 44, cy + 40, -0.22, '#ffcc0a');
+    ctx.fillStyle = '#1a62c9';
+    ctx.beginPath();
+    ctx.arc(cx - 46, cy + 34, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#a3cc14';
+    ctx.beginPath();
+    ctx.arc(cx + 46, cy + 34, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.font = '900 78px "Arial Rounded MT Bold", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText('coalición', cx, 500);
+    ctx.fillText('delfinaria', cx, 580);
+  });
+
   canvasTex(scene, 'softdot', 32, 32, (ctx) => {
     ctx.fillStyle = radial(ctx, 16, 16, 16, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,0.6)'], [1, 'rgba(255,255,255,0)']]);
     ctx.fillRect(0, 0, 32, 32);

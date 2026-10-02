@@ -300,3 +300,178 @@ export class Manta {
     this.sprite.scaleY = 0.9 * (0.8 + Math.sin(this.t * 2.2) * 0.2);
   }
 }
+
+// ---------------------------------------------------------------- Turtle traffic jam
+
+const QUEUE_COMPLAINTS = [
+  '¡Llevo dos horas aquí!',
+  '¡Avanza, que es pa’ hoy!',
+  '¿Esto no lo iban a arreglar?',
+  '¡Piii, piiii!',
+  'Mi abuela llegaba antes nadando de espaldas…',
+  'Otra vez la cola de la rotonda…',
+  '¡Que alguien haga algo!',
+  'Voy a llegar tarde al trabajo. Otra vez.',
+];
+
+interface QueueTurtle {
+  s: Phaser.GameObjects.Image;
+  u: number;
+  phase: number;
+  scale: number;
+}
+
+/**
+ * The famous queues of La Rotonda: dozens of sea turtles stuck in a marine
+ * current around the ring. They inch forward and stop, and never get anywhere.
+ */
+export class TurtleQueue {
+  private turtles: QueueTurtle[] = [];
+  private t = 0;
+  private bubbleT = 2;
+  private bubble: Phaser.GameObjects.Text | null = null;
+
+  constructor(
+    private scene: Phaser.Scene,
+    private cx: number,
+    private cy: number,
+    private rx: number,
+    private ry: number,
+    count: number,
+  ) {
+    for (let i = 0; i < count; i++) {
+      const scale = 0.36 + Math.random() * 0.14;
+      const key = i % 5 === 3 ? 'turtle_baby' : 'turtle';
+      const s = scene.add.image(0, 0, key).setDepth(DEPTH.CREATURES - 2).setScale(key === 'turtle' ? scale : scale * 2);
+      this.turtles.push({ s, u: 0.04 + (i / count) * 0.92, phase: Math.random() * 10, scale });
+    }
+    // a faint current along the queue
+    const path = new Phaser.Curves.Ellipse(cx, cy, rx, ry, 10, 170);
+    scene.add.particles(0, 0, 'softdot', {
+      emitZone: { type: 'random', source: path as unknown as Phaser.Types.GameObjects.Particles.RandomZoneSource },
+      speedX: { min: 30, max: 70 },
+      scaleX: 1.6,
+      scaleY: 0.25,
+      alpha: { start: 0.35, end: 0 },
+      lifespan: 1800,
+      frequency: 90,
+      tint: 0xcff6ff,
+      blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(DEPTH.CREATURES - 3);
+  }
+
+  /** Position on the front arc of the ring (u: 0..1, the current flows left to right). */
+  private at(u: number): { x: number; y: number; a: number } {
+    const a = Phaser.Math.DegToRad(170 - u * 160);
+    const x = this.cx + Math.cos(a) * this.rx;
+    const y = this.cy + Math.sin(a) * this.ry;
+    return { x, y, a };
+  }
+
+  update(dt: number, view: Phaser.Geom.Rectangle): void {
+    this.t += dt;
+    // stop-and-go: everyone creeps a few pixels, then waits… forever
+    const go = Math.max(0, Math.sin(this.t * 0.7)) * 0.0009;
+    for (const q of this.turtles) {
+      q.u = Math.min(0.97, q.u + go * dt * 10);
+      const p = this.at(q.u);
+      const bob = Math.sin(this.t * 1.7 + q.phase) * 4;
+      q.s.setPosition(p.x, p.y + bob);
+      q.s.setFlipX(false); // all facing the way the current flows (left to right along the arc)
+      q.s.rotation = Math.sin(this.t * 1.3 + q.phase) * 0.06;
+    }
+    // complaints from turtles that are on screen
+    this.bubbleT -= dt;
+    if (this.bubbleT <= 0) {
+      this.bubbleT = 3 + Math.random() * 3;
+      const visible = this.turtles.filter((q) => view.contains(q.s.x, q.s.y));
+      if (visible.length) this.say(visible[Math.floor(Math.random() * visible.length)]);
+    }
+  }
+
+  private say(q: QueueTurtle, text?: string): void {
+    this.bubble?.destroy();
+    const line = text ?? QUEUE_COMPLAINTS[Math.floor(Math.random() * QUEUE_COMPLAINTS.length)];
+    const b = this.scene.add.text(q.s.x, q.s.y - 60, line, {
+      fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+      fontSize: '22px',
+      color: '#1b2a3a',
+      backgroundColor: 'rgba(245,250,255,0.92)',
+      padding: { x: 12, y: 6 },
+    }).setOrigin(0.5, 1).setDepth(DEPTH.FX + 1).setAlpha(0);
+    this.bubble = b;
+    this.scene.tweens.add({ targets: b, alpha: 1, y: b.y - 10, duration: 250 });
+    this.scene.tweens.add({ targets: b, alpha: 0, delay: 2600, duration: 400, onComplete: () => b.destroy() });
+  }
+
+  /** Make a specific complaint from the turtle nearest to a point (used by cutscenes). */
+  complainNear(x: number, y: number, text: string): void {
+    let best = this.turtles[0];
+    let bd = Infinity;
+    for (const q of this.turtles) {
+      const d = Phaser.Math.Distance.Between(x, y, q.s.x, q.s.y);
+      if (d < bd) { bd = d; best = q; }
+    }
+    if (best) this.say(best, text);
+  }
+
+  /** Centre of the visible part of the queue (for the camera). */
+  get focus(): { x: number; y: number } {
+    return this.at(0.5);
+  }
+}
+
+// ---------------------------------------------------------------- Dolphin pods
+
+export class DolphinPod {
+  readonly members: { s: Phaser.GameObjects.Image; hx: number; hy: number; phase: number }[] = [];
+  private t = 0;
+  private settled = true;
+
+  constructor(private scene: Phaser.Scene, key: 'dolphin_de' | 'dolphin_local', homes: { x: number; y: number }[], start?: { x: number; y: number }) {
+    for (const h of homes) {
+      const s = scene.add.image(start?.x ?? h.x, start?.y ?? h.y, key).setDepth(DEPTH.CREATURES).setScale(0.9 + Math.random() * 0.25);
+      this.members.push({ s, hx: h.x, hy: h.y, phase: Math.random() * 10 });
+    }
+    if (start) this.settled = false;
+  }
+
+  /** Swim from the start point, through a waypoint, to each member's home. */
+  arrive(via: { x: number; y: number }, onDone?: () => void): void {
+    this.members.forEach((m, i) => {
+      m.s.setFlipX(m.hx < m.s.x);
+      this.scene.tweens.add({
+        targets: m.s, x: via.x + (Math.random() - 0.5) * 80, y: via.y + (Math.random() - 0.5) * 80,
+        delay: i * 160, duration: 1500, ease: 'Sine.easeInOut',
+        onComplete: () => {
+          m.s.setFlipX(m.hx < m.s.x);
+          this.scene.tweens.add({ targets: m.s, x: m.hx, y: m.hy, duration: 1300, ease: 'Sine.easeOut' });
+        },
+      });
+    });
+    this.scene.time.delayedCall(this.members.length * 160 + 2900, () => {
+      this.settled = true;
+      onDone?.();
+    });
+  }
+
+  /** Move the whole pod's homes (e.g. locals being pushed out). */
+  shift(dx: number, dy: number): void {
+    for (const m of this.members) {
+      m.hx += dx;
+      m.hy += dy;
+      this.scene.tweens.add({ targets: m.s, x: m.hx, y: m.hy, duration: 1600, ease: 'Sine.easeInOut' });
+    }
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    if (!this.settled) return;
+    for (const m of this.members) {
+      m.s.y = m.hy + Math.sin(this.t * 1.6 + m.phase) * 6;
+      m.s.x = m.hx + Math.sin(this.t * 0.7 + m.phase) * 10;
+      m.s.rotation = Math.sin(this.t * 1.6 + m.phase) * 0.06;
+      m.s.setFlipX(Math.cos(this.t * 0.7 + m.phase) < 0);
+    }
+  }
+}

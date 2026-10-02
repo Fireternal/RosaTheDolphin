@@ -20,6 +20,7 @@ const SPEAKER_COLORS: Record<string, string> = {
   'Doña Marea': '#a9e38f',
   Bruno: '#d9e98a',
   'La Rotonda': WARM_CSS,
+  'Familia Delfín': '#9fd0ff',
 };
 
 interface Slot {
@@ -654,6 +655,29 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     const r = this.overlayResolve;
     this.overlayResolve = null;
     r?.();
+  }
+
+  /** "MIENTRAS TANTO…": a sober card that shows the problem was not fixed. */
+  showReality(text: string): Promise<void> {
+    return new Promise((resolve) => {
+      const c = this.add.container(960, 860).setDepth(13).setAlpha(0);
+      const bg = this.add.graphics();
+      bg.fillStyle(0x10161f, 0.9);
+      bg.fillRoundedRect(-620, -85, 1240, 170, 18);
+      bg.lineStyle(2, 0x8a96a6, 0.6);
+      bg.strokeRoundedRect(-620, -85, 1240, 170, 18);
+      const head = this.add.text(0, -52, 'MIENTRAS TANTO…', { fontFamily: FONT_UI, fontSize: '18px', color: '#9aa7b8' }).setOrigin(0.5).setLetterSpacing(8);
+      const t = this.add.text(0, 12, text, { fontFamily: FONT_TITLE, fontSize: '34px', color: '#d9e0ea', fontStyle: 'italic', align: 'center', wordWrap: { width: 1160 } }).setOrigin(0.5);
+      c.add([bg, head, t]);
+      this.tweens.add({ targets: c, alpha: 1, y: 840, duration: 400 });
+      this.overlayActive = true;
+      this.overlayCanSkipAt = this.time.now + 1500;
+      const timer = this.time.delayedCall(4600, () => this.closeOverlay());
+      this.overlayResolve = () => {
+        timer.remove();
+        this.tweens.add({ targets: c, alpha: 0, duration: 400, onComplete: () => { c.destroy(); resolve(); } });
+      };
+    });
   }
 
   /** Rainbow + shooting stars: every completed mission is a little party. */

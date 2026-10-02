@@ -222,6 +222,66 @@ export function makeCreatureTextures(scene: Phaser.Scene): void {
     eye(ctx, 236, 76, 4);
   });
 
+  // Small dolphins: locals looking for a home, and German visitors in sun hats.
+  const smallDolphin = (ctx: Ctx, w: number, h: number, body: string[], tourist: boolean): void => {
+    const p = new Path2D();
+    p.moveTo(w - 4, h * 0.6);
+    p.bezierCurveTo(w - 14, h * 0.48, w - 22, h * 0.44, w - 30, h * 0.42);
+    p.bezierCurveTo(w - 38, h * 0.22, w - 56, h * 0.2, w * 0.5, h * 0.24);
+    p.bezierCurveTo(w * 0.3, h * 0.3, w * 0.2, h * 0.42, 18, h * 0.5);
+    p.lineTo(4, h * 0.36);
+    p.lineTo(10, h * 0.56);
+    p.lineTo(4, h * 0.76);
+    p.lineTo(18, h * 0.6);
+    p.bezierCurveTo(w * 0.3, h * 0.72, w * 0.6, h * 0.78, w - 26, h * 0.66);
+    p.bezierCurveTo(w - 16, h * 0.64, w - 8, h * 0.64, w - 4, h * 0.6);
+    p.closePath();
+    // dorsal fin
+    ctx.fillStyle = body[0];
+    ctx.beginPath();
+    ctx.moveTo(w * 0.55, h * 0.25);
+    ctx.lineTo(w * 0.42, h * 0.06);
+    ctx.lineTo(w * 0.4, h * 0.3);
+    ctx.fill();
+    ctx.fillStyle = linear(ctx, 0, h * 0.2, 0, h * 0.8, [[0, body[0]], [0.55, body[1]], [1, '#eef4fa']]);
+    ctx.fill(p);
+    ctx.strokeStyle = 'rgba(20,40,80,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke(p);
+    if (tourist) {
+      // sunburnt cheeks
+      ctx.fillStyle = 'rgba(255,110,110,0.55)';
+      ctx.beginPath();
+      ctx.ellipse(w - 30, h * 0.56, 7, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // sunglasses
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.ellipse(w - 34, h * 0.42, 7, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w - 41, h * 0.41);
+      ctx.lineTo(w - 50, h * 0.38);
+      ctx.stroke();
+      // straw sun hat with a red band
+      ctx.fillStyle = '#f2d27a';
+      ctx.beginPath();
+      ctx.ellipse(w - 46, h * 0.25, 20, 5, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(w - 47, h * 0.17, 11, 9, -0.15, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#d64545';
+      ctx.fillRect(w - 58, h * 0.17, 22, 3);
+    } else {
+      eye(ctx, w - 32, h * 0.44, 3.5);
+    }
+  };
+  canvasTex(scene, 'dolphin_de', 120, 64, (c, w, h) => smallDolphin(c, w, h, ['#8f9fb8', '#c7b3c0'], true));
+  canvasTex(scene, 'dolphin_local', 110, 60, (c, w, h) => smallDolphin(c, w, h, ['#3f5f8e', '#7f9fc4'], false));
+
   // Whale silhouette for the far background
   canvasTex(scene, 'whale', 900, 300, (ctx) => {
     ctx.fillStyle = '#ffffff';

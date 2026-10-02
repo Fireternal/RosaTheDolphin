@@ -1006,6 +1006,29 @@ export function makeEnvTextures(scene: Phaser.Scene): void {
     ctx.fill();
   });
   canvasTex(scene, 'lamp', 30, 110, drawLamp);
+  // Sewage outfall pipe (opening on the left)
+  canvasTex(scene, 'pipe', 360, 110, (ctx, w, h) => {
+    const rand = rng(12);
+    ctx.fillStyle = linear(ctx, 0, 10, 0, h - 10, [[0, '#5b6670'], [0.35, '#a7b0b8'], [1, '#3d454d']]);
+    ctx.fillRect(24, 18, w - 24, h - 36);
+    for (const x of [60, 160, 260]) {
+      ctx.fillStyle = linear(ctx, 0, 6, 0, h - 6, [[0, '#4a535b'], [0.4, '#8d969e'], [1, '#2f363c']]);
+      ctx.fillRect(x, 10, 22, h - 20);
+    }
+    // rust & grime
+    speckle(ctx, rand, 24, 18, w - 24, h - 36, 140, 'rgba(140,80,30,0.45)', 4);
+    speckle(ctx, rand, 24, 18, w - 24, h - 36, 60, 'rgba(70,110,60,0.4)', 5);
+    // mouth
+    ctx.fillStyle = '#4a535b';
+    ctx.beginPath();
+    ctx.ellipse(24, h / 2, 16, h / 2 - 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2a2014';
+    ctx.beginPath();
+    ctx.ellipse(24, h / 2, 10, h / 2 - 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
   canvasTex(scene, 'grotto', GROTTO.ceiling.w + 60, 320, drawGrottoRock);
   canvasTex(scene, 'leg', 46, 1800, (ctx, w, h) => {
     ctx.fillStyle = linear(ctx, 0, 0, w, 0, [[0, '#4f6477'], [0.4, '#a9bac8'], [1, '#4f6477']]);

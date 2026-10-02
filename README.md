@@ -1,20 +1,26 @@
 # ROSA THE DOLPHIN
 
-*Una aventura en busca de la melodía perdida.*
+*Una aventura en busca de la melodía perfecta.*
 
-Vertical slice (5–10 min) de una aventura submarina musical en 2D: **Melodía I — La Rotonda Sumergida**.
-Rosa, una delfina compositora de melena rubia, explora una gran pasarela circular hundida, descubre notas,
-reúne los 7 fragmentos de una melodía rota y, al interpretarla, devuelve la música al lugar. La recompensa
-no es un "nivel completado", sino que alguien le diga: **«¡Gracias, Rosa the Dolphin!»**
+Vertical slice (5–10 min) de una aventura submarina musical y satírica en 2D: **Melodía I — La Rotonda Sumergida**.
 
-Phaser 3 · TypeScript · Vite. Sin assets externos: todo el arte y el audio se generan por código.
+Se acercan las elecciones en el océano. **Rosa**, presidenta de la **Coalición Delfinaria**, aún no tiene su
+melodía perfecta… y sin melodía nadie le dará las gracias. Y a Rosa le encanta que le den las gracias.
+
+En La Rotonda Sumergida reúne los 7 fragmentos de una melodía y la usa para «arreglar» los problemas del lugar:
+las **colas de tortugas** de la rotonda, el **emisario de aguas residuales** y la **falta de cuevas** para los
+delfines de aquí. Cada vez le dan las gracias, con arcoíris y estrellitas… y justo después aparece un
+«MIENTRAS TANTO…» que enseña que el problema sigue ahí (o está peor). Al final: «Problemas resueltos de verdad: 1 ·
+Según Rosa: todos». **¡Gracias, Rosa the Dolphin!**
+
+Phaser 3 · TypeScript · Vite. Todo el arte se genera por código; la única pieza externa es el tema musical.
 
 ![La Rotonda restaurada](docs/finale-rotonda.png)
 ![Las criaturas se acercan a Rosa](docs/final-gathering.png)
 
 ## Jugar online
 
-**https://fireternal.github.io/RosaTheDolphin/** — se publica automáticamente con cada cambio en `main` (GitHub Pages). Chrome, Edge o Firefox en ordenador, con teclado y sonido.
+**https://fireternal.github.io/RosaTheDolphin/** — se publica automáticamente con cada cambio en `main` (GitHub Pages). Ordenador (teclado) o móvil/tablet en horizontal (táctil), con sonido.
 
 ## Arrancar en local
 
@@ -69,12 +75,17 @@ de mar que la acompaña, da pistas según el progreso (E junto a ella). El progr
 
 ## Tu propia música
 
-Menú → **MÚSICA** → «Elegir una canción de mi dispositivo…». La canción sustituye a la banda sonora
-generada: empieza lejana y amortiguada y se abre con cada fragmento, hasta sonar completa en el final.
+Menú → **MÚSICA** → «Elegir una canción de mi dispositivo…». La canción sustituye al tema oficial: empieza lejana y amortiguada y se abre con cada fragmento, hasta sonar completa en el final.
 Se guarda solo en el navegador (IndexedDB), no se sube a ningún sitio ni forma parte del juego publicado.
-«Usar la banda sonora original» vuelve a la música de Rosa.
+«Usar el tema oficial de Rosa» vuelve a la música del juego.
 
-## Música que se construye jugando
+## Música
+
+El tema principal es **«Rosa the Dolphin»** (`public/music/rosa-theme.ogg`, con copia MP3 para Safari), aportado
+por el autor del proyecto como música sin derechos de terceros. Dentro del nivel empieza suave y se abre con cada
+fragmento; en el final suena completo.
+
+## Banda sonora generada (respaldo)
 
 `AudioManager` sintetiza todo con Web Audio (envolventes, armónicos, reverb por convolución) y un secuenciador
 por capas: al empezar solo hay agua y pads; cada fragmento añade una capa (piano → cuerdas → percusión suave → arpa

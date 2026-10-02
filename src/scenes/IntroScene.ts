@@ -16,9 +16,9 @@ export class IntroScene extends Phaser.Scene {
     this.skipping = false;
     this.cameras.main.setBackgroundColor('#020a1a');
     const lines = [
-      'Hay lugares que guardan su propia melodía.',
-      'Pero algunas melodías pueden perderse.',
-      'Rosa ha llegado para escuchar.',
+      'Se acercan las elecciones en el océano.',
+      'Rosa, presidenta de la Coalición Delfinaria, aún no tiene su melodía perfecta.',
+      'Y sin melodía… nadie le dará las gracias.',
     ];
     const notes = [[67], [64], [72]];
     const glow = this.add.image(960, 540, 'glow').setScale(6, 2).setTint(0x1f6fb0).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
@@ -28,7 +28,7 @@ export class IntroScene extends Phaser.Scene {
     });
     void bubbles;
     lines.forEach((l, i) => {
-      const t = this.add.text(960, 540, l, { fontFamily: FONT_TITLE, fontSize: '46px', color: '#e8f4ff', fontStyle: 'italic' })
+      const t = this.add.text(960, 540, l, { fontFamily: FONT_TITLE, fontSize: '42px', color: '#e8f4ff', fontStyle: 'italic' })
         .setOrigin(0.5).setAlpha(0).setShadow(0, 0, 'rgba(90,170,255,0.6)', 18, true, true);
       const start = 600 + i * 3300;
       this.tweens.add({ targets: t, alpha: 1, y: 530, delay: start, duration: 1100, ease: 'Sine.easeOut' });

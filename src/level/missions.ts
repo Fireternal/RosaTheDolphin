@@ -1,7 +1,10 @@
 import type { GratitudeMission } from '../systems/GratitudeSystem';
 import { FINAL_MELODY, PUZZLES } from './RotondaData';
 
-/** Musical missions of level 1. Each one ends with someone thanking Rosa. */
+/**
+ * Musical missions of level 1. Each one ends with someone thanking Rosa —
+ * whether or not she actually fixed anything (`reality` tells the truth).
+ */
 export const ROTONDA_MISSIONS: GratitudeMission[] = [
   {
     id: 'clam',
@@ -15,7 +18,7 @@ export const ROTONDA_MISSIONS: GratitudeMission[] = [
   {
     id: 'bruno',
     helper: 'Doña Marea',
-    problem: 'Su nieto Bruno se ha perdido entre las algas de la superficie.',
+    problem: 'Su nieto Bruno se separó de ella en la cola de la rotonda y se perdió.',
     transformation: 'turtles-reunited',
     thanker: 'Doña Marea',
     message: '¡Gracias, Rosa!',
@@ -24,35 +27,38 @@ export const ROTONDA_MISSIONS: GratitudeMission[] = [
   },
   {
     id: 'gate',
-    helper: 'La familia Payaso',
-    problem: 'La Puerta de Coral se cerró al apagarse la música y no pueden volver a su gruta.',
+    helper: 'Las familias delfín de la Rotonda',
+    problem: 'No hay cuevas donde vivir: la gruta está cerrada y los delfines de aquí no tienen casa.',
     melody: PUZZLES.gate,
-    transformation: 'coral-gate-open',
-    thanker: 'La familia Payaso',
-    message: '¡Gracias, Rosa!',
-    followUps: ['¡Nuestra gruta vuelve a estar abierta!'],
+    transformation: 'grotto-filled-with-visitors',
+    thanker: 'Los delfines alemanes',
+    message: '¡Danke, Rosa!',
+    followUps: ['¡Qué gruta tan bonita! Nos la quedamos.'],
+    reality: 'Los delfines de aquí siguen sin casa. Y ahora hay todavía menos sitio para vivir.',
     tone: 'warm',
   },
   {
     id: 'organ',
-    helper: 'Las medusas de la Torre',
-    problem: 'La corriente de la Torre de las Mareas se volvió del revés y ya no las sube a la luz.',
+    helper: 'Los vecinos del Emisario',
+    problem: 'El emisario de la Torre vierte aguas residuales al mar.',
     melody: PUZZLES.organ,
-    transformation: 'current-reversed',
-    thanker: 'Las medusas de la Torre',
-    message: '¡Gracias, Rosa the Dolphin!',
-    followUps: ['La corriente vuelve a cantar hacia arriba.'],
+    transformation: 'more-sewage',
+    thanker: 'La Comisión de Inauguraciones',
+    message: '¡Gracias, Rosa!',
+    followUps: ['Ha inaugurado la nueva Gran Bomba del Emisario.'],
+    reality: 'Ahora sale el triple de aguas residuales.',
     tone: 'warm',
   },
   {
     id: 'rotonda',
-    helper: 'Toda la Rotonda Sumergida',
-    problem: 'La melodía del lugar se rompió en siete fragmentos y el silencio lo apagó todo.',
+    helper: 'Las tortugas de la Rotonda',
+    problem: 'Hay tantas tortugas en la corriente de la rotonda que se forman colas eternas y nadie avanza.',
     melody: FINAL_MELODY,
-    transformation: 'rotonda-restored',
-    thanker: 'Todos los habitantes de la Rotonda',
+    transformation: 'rotonda-inaugurated',
+    thanker: 'Toda la Coalición Delfinaria',
     message: '¡GRACIAS, ROSA THE DOLPHIN!',
-    followUps: ['Has devuelto la música a la Rotonda.', 'Melodía completada.'],
+    followUps: ['Ha inaugurado La Rotonda Sumergida.', 'Melodía completada.'],
+    reality: 'La cola de tortugas sigue exactamente igual.',
     tone: 'grand',
   },
 ];
