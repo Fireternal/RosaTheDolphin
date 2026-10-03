@@ -60,6 +60,22 @@ const ANNOUNCEMENTS_DARK = [
   '«El generador de la Coalición solo alimenta la pantalla del escenario. Prioridades»',
 ];
 
+/** What people say when Rosa's sonar goes off next to them. */
+const SONAR_COMPLAINTS = [
+  '¡Qué pesada!',
+  '¡Cállate, Rosa!',
+  '¡Otra vez el pitido no!',
+  '¡Que estoy en ranked!',
+  '¡Me has metido lag!',
+  'Uff… la del sonar',
+  '¡Mutead a la delfina!',
+  '¡Que me retumba el snorkel!',
+  'Presidenta, por favor…',
+  '¿Esto también lo pagamos?',
+  '¡Baja eso, señora!',
+  '¡Shhh!',
+];
+
 /**
  * Melodía II — La Tenerife LanD Party.
  * Rosa subsidises (and floods) the Tenerife LAN Party, pretends to understand
@@ -99,6 +115,8 @@ export class TLPScene extends Phaser.Scene {
   private announceTimer = 40;
   private announceIndex = 0;
   private organizerTalks = 0;
+  private sonarShouts = 0;
+  private lastComplaint = -1;
 
   constructor() {
     super(KEY);
@@ -310,10 +328,17 @@ export class TLPScene extends Phaser.Scene {
       if (c.collected) continue;
       this.sonar.add({ x: c.item.x, y: c.item.y, onSonar: () => this.revealCostume(c) });
     }
-    for (const [k, p] of Object.entries(this.builder.people)) {
+    // the sonar is LOUD: whoever it reaches lets Rosa know
+    for (const p of Object.values(this.builder.people)) {
       this.sonar.add({ x: p.x, y: p.y - 120, onSonar: () => {
         this.tweens.add({ targets: p, scaleY: { from: 0.9, to: 1 }, duration: 300, ease: 'Back.easeOut' });
-        if (Math.random() < 0.35) this.shout(p.x, p.y - 290, ['¿Eso es un sonar?', '¡Qué pasada!', '¿Me hace un ping?', 'Wow'][k.length % 4], '#cfe6ff');
+        this.complain(p.x, p.y - 290);
+      } });
+    }
+    for (const g of this.builder.gamers) {
+      this.sonar.add({ x: g.x, y: g.y - 100, onSonar: () => {
+        this.tweens.add({ targets: g, y: { from: g.y - 10, to: g.y }, duration: 260, ease: 'Bounce.easeOut' });
+        this.complain(g.x, g.y - 250);
       } });
     }
     for (const s of this.schools) this.sonar.add({ get x() { return s.x; }, get y() { return s.y; }, onSonar: (p) => s.scatter(p.x, p.y) });
@@ -428,7 +453,10 @@ export class TLPScene extends Phaser.Scene {
         if (pressed.E && !this.puzzleBusy) void this.listenPuzzle(this.activePuzzle);
         this.updateMarkers(dt, null, true);
       } else {
-        if (pressed.Q && this.sonar.emit(this.rosa.x, this.rosa.y)) this.particles.glyph(this.rosa.x, this.rosa.y - 40, 3);
+        if (pressed.Q && this.sonar.emit(this.rosa.x, this.rosa.y)) {
+          this.sonarShouts = 0;
+          this.particles.glyph(this.rosa.x, this.rosa.y - 40, 3);
+        }
         noteSeq.forEach((n) => this.playFreeNote(n));
         const it = this.nearestInteractable();
         this.ui.setPrompt(it ? it.label() : null);
@@ -588,6 +616,15 @@ export class TLPScene extends Phaser.Scene {
     this.announceTimer = 70;
     const list = this.save.flags.blackout ? ANNOUNCEMENTS_DARK : ANNOUNCEMENTS;
     this.ui.toast(list[this.announceIndex++ % list.length], 'MEGAFONÍA', '#ffe08a');
+  }
+
+  /** Somebody annoyed by the sonar (a few per ping, never the same line twice in a row). */
+  private complain(x: number, y: number): void {
+    if (this.sonarShouts >= 3 || dist(x, y, this.rosa.x, this.rosa.y) > 650) return;
+    let i = Math.floor(Math.random() * SONAR_COMPLAINTS.length);
+    if (i === this.lastComplaint) i = (i + 1) % SONAR_COMPLAINTS.length;
+    this.lastComplaint = i;
+    this.shout(x, y, SONAR_COMPLAINTS[i], '#ffb3a8', this.sonarShouts++ * 250);
   }
 
   /** A line shouted by someone in the hall (floats over their head). */
