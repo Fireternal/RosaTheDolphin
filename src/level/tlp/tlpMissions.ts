@@ -80,7 +80,7 @@ export const TLP_MISSIONS: GratitudeMission[] = [
     transformation: 'closing-ceremony',
     thanker: 'Toda la Tenerife LAN Party',
     message: '¡GRACIAS, ROSA THE DOLPHIN!',
-    followUps: ['Ha clausurado la primera TLP acuática de la historia.', 'Melodía completada.'],
+    followUps: ['Ha clausurado el mayor evento tecnológico acuático del mundo.', 'Melodía completada.'],
     reality: 'La ciudad sigue sin luz. El generador de la Coalición solo alimenta la pantalla con su logo.',
     tone: 'grand',
   },

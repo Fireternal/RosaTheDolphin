@@ -47,6 +47,7 @@ export class TLPBuilder {
     s.add.tileSprite(W / 2, 48, W, 96, 'tlp_truss').setDepth(DEPTH.MID_BACK);
     s.add.tileSprite(W / 2, 430, W, 96, 'tlp_truss').setDepth(DEPTH.MID_BACK);
     s.add.tileSprite(W / 2, TW.floor + 70, W, 160, 'tlp_floor').setDepth(DEPTH.FLOOR);
+    s.add.rectangle(W / 2, TW.floor + 150 + 250, W, 500, 0x101119).setDepth(DEPTH.FLOOR);
 
     // coloured stage lights hanging from the truss
     for (let x = 300; x < W; x += 520) {
@@ -65,7 +66,7 @@ export class TLPBuilder {
     this.person('organizer', SPOTS.organizer.x, SPOTS.organizer.y);
 
     // ---- LAN zone: a mezzanine and a floor row of desks full of gamers
-    s.add.image(2060, 560, 'tlp_sign_lan').setDepth(DEPTH.MID);
+    s.add.image(2060, 930, 'tlp_sign_lan').setScale(0.85).setDepth(DEPTH.MID);
     for (const x of [SPOTS.deckX0 + 60, 2060, SPOTS.deckX1 - 60]) s.add.image(x, SPOTS.deckY + 20, 'tlp_scaffold').setOrigin(0.5, 0).setScale(1, (TW.floor - SPOTS.deckY - 20) / 520).setDepth(DEPTH.MID_BACK);
     s.add.tileSprite((SPOTS.deckX0 + SPOTS.deckX1) / 2, SPOTS.deckY + 20, SPOTS.deckX1 - SPOTS.deckX0, 40, 'tlp_deck').setDepth(DEPTH.MID + 1);
     for (const row of [SPOTS.deckY, TW.floor]) {
@@ -101,7 +102,7 @@ export class TLPBuilder {
     });
 
     // ---- Summer-Con
-    s.add.image(3600, 560, 'tlp_sign_summer').setDepth(DEPTH.MID);
+    s.add.image(SPOTS.cosStage.x, 1330, 'tlp_sign_summer').setScale(0.85).setDepth(DEPTH.MID);
     s.add.image(SPOTS.cosStage.x, SPOTS.cosStage.y, 'tlp_cosstage').setOrigin(0.5, 1).setDepth(DEPTH.MID);
     (['cos_knight', 'cos_magic', 'cos_robot'] as const).forEach((k, i) => this.person(k, SPOTS.cosplayers[i], SPOTS.cosStage.y - 178));
     this.person('judge', SPOTS.judge.x, SPOTS.judge.y, DEPTH.MID);
@@ -112,14 +113,14 @@ export class TLPBuilder {
     }
 
     // ---- K-Pop
-    s.add.image(4440, 560, 'tlp_sign_kpop').setDepth(DEPTH.MID);
+    s.add.image(SPOTS.danceFloor.x, 1340, 'tlp_sign_kpop').setScale(0.85).setDepth(DEPTH.MID);
     s.add.image(SPOTS.danceFloor.x, SPOTS.danceFloor.y + 6, 'tlp_dancefloor').setOrigin(0.5, 1).setDepth(DEPTH.MID);
     (['dancer_0', 'dancer_1', 'dancer_2'] as const).forEach((k, i) => this.dancers.push(this.person(k, SPOTS.dancers[i], SPOTS.danceFloor.y - 40)));
     s.add.image(SPOTS.boombox.x, SPOTS.boombox.y, 'tlp_boombox').setOrigin(0.5, 1).setDepth(DEPTH.MID + 1);
     this.person('fan_0', 4060, TW.floor);
 
     // ---- TLP Innova
-    s.add.image(5090, 560, 'tlp_sign_innova').setDepth(DEPTH.MID);
+    s.add.image(SPOTS.innovaScreen.x, 880, 'tlp_sign_innova').setScale(0.85).setDepth(DEPTH.MID);
     s.add.image(SPOTS.innovaScreen.x, SPOTS.innovaScreen.y, 'tlp_innova_screen').setDepth(DEPTH.MID);
     this.signGlows.push(s.add.image(SPOTS.innovaScreen.x, SPOTS.innovaScreen.y, 'glow').setTint(0x3fff9f).setScale(3.4, 2).setBlendMode(ADD).setAlpha(0.18).setDepth(DEPTH.MID - 0.5));
     s.add.image(SPOTS.podium.x, SPOTS.podium.y, 'tlp_podium').setOrigin(0.5, 1).setDepth(DEPTH.MID + 1);
@@ -149,11 +150,6 @@ export class TLPBuilder {
     }
 
     // ---- emergency lighting (only visible during the blackout)
-    for (const x of [1050, 1900, 3300, 4600, 5800]) {
-      s.add.image(x, 820, 'tlp_exit').setDepth(DEPTH.MID);
-      const g = s.add.image(x, 820, 'glow').setTint(0x3fff7f).setScale(1.2, 0.6).setBlendMode(ADD).setAlpha(0).setDepth(DEPTH.FOREGROUND + 3);
-      this.emergency.push(g);
-    }
     for (const x of [1000, 2500, 3900, 5300, 6500]) {
       s.add.image(x, 520, 'tlp_beacon').setDepth(DEPTH.MID_BACK + 1);
       const g = s.add.image(x, 520, 'glow').setTint(0xff3030).setScale(1.6).setBlendMode(ADD).setAlpha(0).setDepth(DEPTH.FOREGROUND + 3);

@@ -13,6 +13,7 @@
     "qa:tlp": "node scripts/qa-tlp.mjs"
   },
   "dependencies": {
+    "@fontsource/chewy": "^5.3.0",
     "phaser": "^3.90.0"
   },
   "devDependencies": {

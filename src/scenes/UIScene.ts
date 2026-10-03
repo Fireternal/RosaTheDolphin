@@ -6,6 +6,7 @@ import { TouchControls } from '../systems/TouchControls';
 import { AudioManager } from '../systems/AudioManager';
 import type { GratitudeMission, GratitudePresenter } from '../systems/GratitudeSystem';
 import type { ObjectivePresenter } from '../systems/ObjectiveSystem';
+import { cutify, richLine, RichText } from '../ui/CuteText';
 
 const ADD = Phaser.BlendModes.ADD;
 
@@ -103,7 +104,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   // dialogue
   private dlgBox!: Phaser.GameObjects.Container;
   private dlgName!: Phaser.GameObjects.Text;
-  private dlgText!: Phaser.GameObjects.Text;
+  private dlgText!: RichText;
   private dlgHint!: Phaser.GameObjects.Text;
   private dlgLines: DialogueLine[] = [];
   private dlgIndex = 0;
@@ -135,6 +136,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   private gameRef: { handleEscape(): boolean; goToMenu(): void } | null = null;
   private gameKey = 'GameScene';
   private statusText!: Phaser.GameObjects.Text;
+  private controlsHint: Phaser.GameObjects.Container | null = null;
 
   // multiple-choice answers (Rosa pretending she knows what everyone is talking about)
   private choiceBox!: Phaser.GameObjects.Container;
@@ -236,8 +238,9 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     }
 
     this.thanksHeart = this.add.image(58, 178, 'heart').setScale(0.38).setTint(0xff9ab0).setAlpha(0.9);
-    this.thanksText = this.add.text(76, 178, 'Gracias recibidas: 0', { fontFamily: FONT_UI, fontSize: '16px', color: '#ffd7e0' }).setOrigin(0, 0.5).setAlpha(0.9);
-    TL.add([this.thanksHeart, this.thanksText]);
+    const cute = cutify(this.add.text(76, 177, 'Gracias', { fontFamily: FONT_UI, fontSize: '20px' }), 20).setOrigin(0, 0.5);
+    this.thanksText = this.add.text(76 + cute.width + 6, 178, 'recibidas: 0', { fontFamily: FONT_UI, fontSize: '16px', color: '#ffd7e0' }).setOrigin(0, 0.5).setAlpha(0.9);
+    TL.add([this.thanksHeart, cute, this.thanksText]);
 
     NOTE_ORDER.forEach((n, i) => {
       const t = this.add.text(50 + i * 44, 208, n, { fontFamily: FONT_TITLE, fontSize: '16px', color: NOTE_INFO[n].css }).setAlpha(0.18);
@@ -341,7 +344,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   }
 
   setGratitudeCount(n: number, animate = false): void {
-    this.thanksText.setText(`Gracias recibidas: ${n}`);
+    this.thanksText.setText(`recibidas: ${n}`);
     if (animate) {
       this.tweens.add({ targets: this.thanksHeart, scale: { from: 0.9, to: 0.38 }, duration: 700, ease: 'Back.easeOut' });
       this.tweens.add({ targets: this.thanksText, scale: { from: 1.25, to: 1 }, duration: 500 });
@@ -446,16 +449,17 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     bg.lineStyle(1, 0x9fe8ff, 0.25);
     for (let i = 0; i < 5; i++) bg.lineBetween(-600, 60 + i * 5, 600, 60 + i * 5);
     this.dlgName = this.add.text(-600, -70, '', { fontFamily: FONT_TITLE, fontSize: '26px', color: GOLD_CSS, fontStyle: 'italic' });
-    this.dlgText = this.add.text(-600, -30, '', { fontFamily: FONT_UI, fontSize: '27px', color: '#f2f8ff', wordWrap: { width: 1180 }, lineSpacing: 6 });
+    this.dlgText = new RichText(this, -600, -36, { fontFamily: FONT_UI, fontSize: 27, color: '#f2f8ff', width: 1180, lineSpacing: 6 });
     this.dlgHint = this.add.text(612, 70, 'E ▸', { fontFamily: FONT_UI, fontSize: '18px', color: GOLD_CSS }).setOrigin(1, 0.5);
-    this.dlgBox.add([bg, this.dlgName, this.dlgText, this.dlgHint]);
+    this.dlgBox.add([bg, this.dlgName, this.dlgText.container, this.dlgHint]);
     this.tweens.add({ targets: this.dlgHint, alpha: 0.3, duration: 600, yoyo: true, repeat: -1 });
   }
 
   say(lines: DialogueLine[]): Promise<void> {
     return new Promise((resolve) => {
       this.tweens.killTweensOf(this.dlgBox);
-      this.dlgHint.setVisible(true);
+      this.hideControlsHint();
+      this.dlgHint.setText('E ▸').setVisible(true);
       this.dlgLines = lines;
       this.dlgIndex = 0;
       this.dialogueActive = true;
@@ -470,7 +474,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   private showLine(): void {
     const l = this.dlgLines[this.dlgIndex];
     this.dlgName.setText(l.who).setColor(SPEAKER_COLORS[l.who] ?? '#ffffff');
-    this.dlgText.setText('');
+    this.dlgText.setText(l.text).reveal(0);
     this.dlgShown = 0;
   }
 
@@ -479,7 +483,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     const l = this.dlgLines[this.dlgIndex];
     if (this.dlgShown < l.text.length) {
       this.dlgShown = l.text.length;
-      this.dlgText.setText(l.text);
+      this.dlgText.reveal(l.text.length);
       return;
     }
     this.dlgIndex++;
@@ -498,7 +502,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   // =========================================================== choices
 
   private buildChoices(): void {
-    this.choiceBox = this.add.container(960, 0).setVisible(false).setDepth(2);
+    this.choiceBox = this.add.container(960, 0).setVisible(false).setDepth(7);
   }
 
   /** Someone asks Rosa something; the player picks her answer. Resolves with the option index. */
@@ -506,21 +510,24 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     return new Promise((resolve) => {
       this.tweens.killTweensOf(this.dlgBox);
       this.tweens.killTweensOf(this.choiceBox);
+      this.hideControlsHint();
       this.dlgLines = [q];
       this.dlgIndex = 0;
       this.dlgShown = q.text.length;
       this.dlgName.setText(q.who).setColor(SPEAKER_COLORS[q.who] ?? '#ffffff');
-      this.dlgText.setText(q.text);
-      this.dlgHint.setVisible(false);
-      this.dlgBox.setVisible(true).setAlpha(1).setY(900);
+      this.dlgText.setText(q.text).reveal(q.text.length);
+      this.dlgHint.setText(isTouchDevice() ? 'Toca una respuesta' : '↑ ↓  ·  1-' + options.length + '  ·  E — elegir').setVisible(true);
+      // the question goes on top, the answers underneath
+      const h = 66;
+      const firstRow = 1010 - (options.length - 1) * h;
+      this.dlgBox.setVisible(true).setAlpha(1).setY(firstRow - 28 - 12 - 90);
       this.dialogueActive = true;
       this.choiceActive = true;
       this.choiceResolve = resolve;
       this.choiceOpenedAt = this.time.now;
       this.choiceBox.removeAll(true);
       this.choiceItems = [];
-      const h = 66;
-      const top = 780 - (options.length - 1) * h;
+      const top = firstRow;
       options.forEach((o, i) => {
         const bg = this.add.graphics();
         bg.fillStyle(0x04142e, 0.9);
@@ -820,10 +827,10 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   private smallThanks(m: GratitudeMission): Promise<void> {
     return new Promise((resolve) => {
       const c = this.add.container(960, 300).setAlpha(0).setDepth(11);
-      const t = this.add.text(0, 0, `«${m.message}»`, { fontFamily: FONT_TITLE, fontSize: '40px', color: WARM_CSS, fontStyle: 'italic' })
-        .setOrigin(0.5).setShadow(0, 0, 'rgba(255,190,90,0.7)', 16, true, true);
-      const who = this.add.text(0, 44, `— ${m.thanker}`, { fontFamily: FONT_UI, fontSize: '19px', color: '#ffd7e0' }).setOrigin(0.5).setLetterSpacing(2);
-      c.add([t, who]);
+      const shade = this.add.image(0, 14, 'shade').setDisplaySize(1100, 220).setAlpha(0.95);
+      const t = richLine(this, 0, 0, `«${m.message}»`, { fontFamily: FONT_TITLE, fontSize: 40, color: WARM_CSS, fontStyle: 'italic', cuteScale: 1.25 });
+      const who = this.add.text(0, 48, `— ${m.thanker}`, { fontFamily: FONT_UI, fontSize: '19px', color: '#ffd7e0' }).setOrigin(0.5).setLetterSpacing(2);
+      c.add([shade, t.container, who]);
       this.heartsBurst(960, 360, 8);
       this.tweens.add({ targets: c, alpha: 1, y: 280, duration: 400 });
       this.tweens.add({ targets: c, alpha: 0, delay: 2600, duration: 500, onComplete: () => { c.destroy(); resolve(); } });
@@ -836,13 +843,15 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       const c = this.add.container(960, 470).setAlpha(0).setDepth(11);
       const glow = this.add.image(0, 10, 'glow').setScale(5, 1.6).setTint(0xffc46a).setBlendMode(ADD).setAlpha(0.35);
       const who = this.add.text(0, -70, m.thanker.toUpperCase(), { fontFamily: FONT_UI, fontSize: '20px', color: '#ffd7e0' }).setOrigin(0.5).setLetterSpacing(6);
-      const t = this.add.text(0, 0, m.message, { fontFamily: FONT_TITLE, fontSize: '68px', color: WARM_CSS, fontStyle: 'italic', align: 'center' })
-        .setOrigin(0.5).setShadow(0, 0, 'rgba(255,180,80,0.85)', 24, true, true);
-      c.add([glow, who, t]);
+      // a dark cushion behind the words so they read on top of any scenery
+      const shade = this.add.image(0, 20, 'shade').setDisplaySize(1700, 520).setAlpha(1);
+      const rt = richLine(this, 0, 0, m.message, { fontFamily: FONT_TITLE, fontSize: 68, color: WARM_CSS, fontStyle: 'italic', cuteScale: 1.3 });
+      const t = rt.container;
+      c.add([shade, glow, who, t]);
       (m.followUps ?? []).forEach((line, i) => {
-        c.add(this.add.text(0, 70 + i * 34, line, { fontFamily: FONT_UI, fontSize: '22px', color: '#e8f4ff', align: 'center' }).setOrigin(0.5));
+        c.add(richLine(this, 0, 78 + i * 36, line, { fontFamily: FONT_UI, fontSize: 22, color: '#e8f4ff' }).container);
       });
-      this.tweens.add({ targets: dim, fillAlpha: 0.35, duration: 500 });
+      this.tweens.add({ targets: dim, fillAlpha: 0.62, duration: 500 });
       this.tweens.add({ targets: c, alpha: 1, duration: 600 });
       this.tweens.add({ targets: t, scale: { from: 0.7, to: 1 }, duration: 900, ease: 'Back.easeOut' });
       this.heartsBurst(960, 640, 18);
@@ -872,17 +881,17 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       this.tweens.add({ targets: rays, angle: 360, duration: 60000, repeat: -1 });
       const c = this.add.container(960, 470).setDepth(11);
       const glow = this.add.image(0, 0, 'glow').setScale(9, 3).setTint(0xffc46a).setBlendMode(ADD).setAlpha(0);
-      const l1 = this.add.text(0, -70, '¡GRACIAS,', { fontFamily: FONT_TITLE, fontSize: '104px', color: '#fff3d0', fontStyle: 'bold' })
-        .setOrigin(0.5).setShadow(0, 0, 'rgba(255,190,80,1)', 30, true, true).setAlpha(0).setLetterSpacing(6);
+      const l1 = cutify(this.add.text(0, -76, '¡GRACIAS,', { fontFamily: FONT_TITLE, fontSize: '124px' }), 124)
+        .setOrigin(0.5).setShadow(0, 0, 'rgba(255,190,80,0.9)', 26, false, true).setAlpha(0).setLetterSpacing(8);
       const l2 = this.add.text(0, 62, 'ROSA THE DOLPHIN!', { fontFamily: FONT_TITLE, fontSize: '112px', color: GOLD_CSS, fontStyle: 'bold' })
         .setOrigin(0.5).setShadow(0, 0, 'rgba(255,170,60,1)', 34, true, true).setAlpha(0).setLetterSpacing(4);
       const who = this.add.text(0, 160, `— ${m.thanker} —`, { fontFamily: FONT_UI, fontSize: '22px', color: '#ffd7e0' }).setOrigin(0.5).setLetterSpacing(6).setAlpha(0);
       c.add([glow, l1, l2, who]);
       const ups = (m.followUps ?? []).map((line, i) =>
-        this.add.text(960, 720 + i * 52, line, { fontFamily: FONT_TITLE, fontSize: i === 0 ? '34px' : '28px', color: i === 0 ? '#eaf6ff' : GOLD_CSS, fontStyle: 'italic' })
-          .setOrigin(0.5).setAlpha(0).setDepth(11).setShadow(0, 0, 'rgba(0,10,30,0.9)', 10, true, true));
+        richLine(this, 960, 720 + i * 52, line, { fontFamily: FONT_TITLE, fontSize: i === 0 ? 34 : 28, color: i === 0 ? '#eaf6ff' : GOLD_CSS, fontStyle: 'italic' })
+          .container.setAlpha(0).setDepth(11));
 
-      this.tweens.add({ targets: dim, fillAlpha: 0.5, duration: 1200 });
+      this.tweens.add({ targets: dim, fillAlpha: 0.62, duration: 1200 });
       this.tweens.add({ targets: rays, alpha: 1, duration: 1800 });
       this.tweens.add({ targets: glow, alpha: 0.55, duration: 1500 });
       this.tweens.add({ targets: l1, alpha: 1, scale: { from: 0.5, to: 1 }, duration: 1100, ease: 'Back.easeOut' });
@@ -934,8 +943,8 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       bg.lineStyle(2, 0x8a96a6, 0.6);
       bg.strokeRoundedRect(-620, -85, 1240, 170, 18);
       const head = this.add.text(0, -52, 'MIENTRAS TANTO…', { fontFamily: FONT_UI, fontSize: '18px', color: '#9aa7b8' }).setOrigin(0.5).setLetterSpacing(8);
-      const t = this.add.text(0, 12, text, { fontFamily: FONT_TITLE, fontSize: '34px', color: '#d9e0ea', fontStyle: 'italic', align: 'center', wordWrap: { width: 1160 } }).setOrigin(0.5);
-      c.add([bg, head, t]);
+      const t = new RichText(this, 0, 14, { fontFamily: FONT_TITLE, fontSize: 32, color: '#d9e0ea', fontStyle: 'italic', align: 'center', width: 1160, cuteScale: 1.1 }).setText(text);
+      c.add([bg, head, t.container]);
       this.tweens.add({ targets: c, alpha: 1, y: 840, duration: 400 });
       this.overlayActive = true;
       this.overlayCanSkipAt = this.time.now + 1500;
@@ -1054,9 +1063,19 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
           'Q — sonar musical   ·   E — interactuar   ·   1-7 — tocar notas',
         ];
     const c = this.add.container(960, isTouchDevice() ? 300 : 990).setAlpha(0).setDepth(5);
+    this.controlsHint = c;
     lines.forEach((l, i) => c.add(this.add.text(0, i * 28 - 28, l, { fontFamily: FONT_UI, fontSize: '19px', color: '#dff3ff' }).setOrigin(0.5).setLetterSpacing(1)));
     this.tweens.add({ targets: c, alpha: 0.9, duration: 800 });
     this.tweens.add({ targets: c, alpha: 0, delay: 9000, duration: 1500, onComplete: () => c.destroy() });
+  }
+
+  /** The controls hint gets out of the way as soon as someone talks. */
+  private hideControlsHint(): void {
+    const c = this.controlsHint;
+    if (!c?.active) return;
+    this.controlsHint = null;
+    this.tweens.killTweensOf(c);
+    this.tweens.add({ targets: c, alpha: 0, duration: 200, onComplete: () => c.destroy() });
   }
 
   // =========================================================== pause
@@ -1198,7 +1217,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
         const before = Math.floor(this.dlgShown);
         this.dlgShown = Math.min(l.text.length, this.dlgShown + this.game.loop.delta * 0.05);
         if (Math.floor(this.dlgShown) !== before) {
-          this.dlgText.setText(l.text.slice(0, Math.floor(this.dlgShown)));
+          this.dlgText.reveal(Math.floor(this.dlgShown));
           if (Math.floor(this.dlgShown) % 4 === 0) AudioManager.talk();
         }
       }

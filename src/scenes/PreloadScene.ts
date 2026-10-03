@@ -21,13 +21,16 @@ export class PreloadScene extends Phaser.Scene {
     const t = this.add.text(960, 540, 'Afinando el océano…', { fontFamily: FONT_TITLE, fontSize: '34px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5);
     this.tweens.add({ targets: t, alpha: 0.4, duration: 600, yoyo: true, repeat: -1 });
     // let the text render one frame before the (synchronous) texture generation
-    this.time.delayedCall(50, () => {
+    // the cute font for every "gracias" must be ready before any text uses it
+    const fontReady = document.fonts?.load('40px Chewy').catch(() => undefined) ?? Promise.resolve();
+    const timeout = new Promise((r) => setTimeout(r, 3000));
+    void Promise.race([fontReady, timeout]).then(() => this.time.delayedCall(50, () => {
       makeFxTextures(this);
       makeRosaTextures(this);
       makeCreatureTextures(this);
       makeEnvTextures(this);
       makeTLPTextures(this);
       this.scene.start('MenuScene');
-    });
+    }));
   }
 }

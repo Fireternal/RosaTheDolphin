@@ -671,18 +671,6 @@ export function makeTLPTextures(scene: Phaser.Scene): void {
     text(ctx, '— Rosa, presidenta', w / 2, 372, 20, '#0d2350', { bold: true, italic: true });
   });
 
-  canvasTex(scene, 'tlp_exit', 170, 70, (ctx, w, h) => {
-    ctx.fillStyle = '#0f8a3a';
-    rr(ctx, 4, 4, w - 8, h - 8, 8);
-    ctx.fill();
-    text(ctx, 'SALIDA', w / 2 + 14, h / 2, 30, '#ffffff', { bold: true });
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(30, 24, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(27, 30, 6, 18);
-  });
-
   const zoneSign = (key: string, title: string, sub: string, c1: string, c2: string) =>
     canvasTex(scene, key, 760, 170, (ctx, w, h) => {
       ctx.fillStyle = 'rgba(8,8,24,0.85)';

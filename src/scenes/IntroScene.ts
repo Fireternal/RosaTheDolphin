@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { centerLayout } from '../core/layout';
 import { FONT_TITLE } from '../config';
 import { AudioManager } from '../systems/AudioManager';
+import { richLine } from '../ui/CuteText';
 
 /** Three short lines, then the level begins. Skippable. */
 export class IntroScene extends Phaser.Scene {
@@ -36,8 +37,8 @@ export class IntroScene extends Phaser.Scene {
     });
     void bubbles;
     lines.forEach((l, i) => {
-      const t = this.add.text(960, 540, l, { fontFamily: FONT_TITLE, fontSize: '42px', color: '#e8f4ff', fontStyle: 'italic' })
-        .setOrigin(0.5).setAlpha(0).setShadow(0, 0, 'rgba(90,170,255,0.6)', 18, true, true);
+      const t = richLine(this, 960, 540, l, { fontFamily: FONT_TITLE, fontSize: 42, color: '#e8f4ff', fontStyle: 'italic', cuteScale: 1.3 })
+        .container.setAlpha(0);
       const start = 600 + i * 3300;
       this.tweens.add({ targets: t, alpha: 1, y: 530, delay: start, duration: 1100, ease: 'Sine.easeOut' });
       this.tweens.add({ targets: t, alpha: 0, y: 515, delay: start + 2300, duration: 900, ease: 'Sine.easeIn' });

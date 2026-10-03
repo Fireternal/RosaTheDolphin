@@ -4,6 +4,7 @@ import { FONT_TITLE, FONT_UI, GOLD_CSS, WARM_CSS } from '../config';
 import { AudioManager } from '../systems/AudioManager';
 import { SaveManager, TLPSave } from '../systems/SaveManager';
 import { MenuBackdrop } from './MenuBackdrop';
+import { richLine } from '../ui/CuteText';
 
 interface Stats {
   time: number;
@@ -51,7 +52,9 @@ export class EndingScene extends Phaser.Scene {
       return t;
     };
     const tlp = stats?.level === 'tlp';
-    make(150, '¡Gracias, Rosa the Dolphin!', 40, WARM_CSS, 400);
+    const thanks = richLine(this, 960, 150, '¡Gracias, Rosa the Dolphin!', { fontFamily: FONT_TITLE, fontSize: 40, color: WARM_CSS, fontStyle: 'italic', cuteScale: 1.35 })
+      .container.setAlpha(0).setDepth(30);
+    this.tweens.add({ targets: thanks, alpha: 1, y: 140, delay: 400, duration: 1200, ease: 'Sine.easeOut' });
     this.add.image(1700, 260, 'logo_cd').setScale(0.3).setDepth(30).setAngle(4);
     make(330, tlp ? 'MELODÍA II' : 'MELODÍA I', 58, GOLD_CSS, 1600, false).setLetterSpacing(12);
     make(420, tlp ? 'LA TENERIFE LanD PARTY' : 'LA ROTONDA SUMERGIDA', 74, '#fff3d6', 2400, false).setLetterSpacing(8);

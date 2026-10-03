@@ -44,6 +44,7 @@ interface Costume {
 
 const ADD = Phaser.BlendModes.ADD;
 const KEY = 'TLPScene';
+const TALK_ROOM = 420;
 
 /** Things the hall's PA system keeps announcing. */
 const ANNOUNCEMENTS = [
@@ -87,6 +88,8 @@ export class TLPScene extends Phaser.Scene {
   private ready = false;
   private finaleDone = false;
   private camFocus = { x: 0, y: 0 };
+  /** While Rosa talks to someone, the camera frames them in the upper half (above the dialogue). */
+  private talkFocus: { x: number; y: number } | null = null;
   private cinematic = false;
   private world!: SwimWorld;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -120,7 +123,8 @@ export class TLPScene extends Phaser.Scene {
     this.save.notes = [...NOTE_ORDER];
     if (!data?.continue) TLPSave.save(this.save);
 
-    this.cameras.main.setBounds(0, TW.top, TW.w, TW.bottom - TW.top);
+    // extra room under the floor so people standing on it can be framed above the dialogue box
+    this.cameras.main.setBounds(0, TW.top, TW.w, TW.bottom + TALK_ROOM - TW.top);
     this.cameras.main.setBackgroundColor('#0d1d3d');
     if (this.renderer.type === Phaser.WEBGL) this.cameras.main.postFX.addVignette(0.5, 0.5, 0.92, 0.3);
 
@@ -525,11 +529,17 @@ export class TLPScene extends Phaser.Scene {
     const c = this.rosa.ctrl;
     let tx = this.rosa.x + c.vx * 0.32;
     let ty = this.rosa.y + c.vy * 0.22;
+    if (this.talkFocus && !this.busy && !this.ui.dialogueActive) this.talkFocus = null;
     if (this.activePuzzle) {
       const src = this.activePuzzle.cfg;
       tx = (this.rosa.x + src.sourceX) / 2;
       ty = Math.max((this.rosa.y + src.sourceY) / 2, this.rosa.y - 120) + 140;
+    } else if (this.talkFocus) {
+      tx = this.talkFocus.x;
+      ty = this.talkFocus.y + 280;
     }
+    // the room under the floor is only for framing conversations
+    if (!this.talkFocus) ty = Math.min(ty, TW.bottom - 540);
     const k = damp(3.2, dt);
     this.camFocus.x += (tx - this.camFocus.x) * k;
     this.camFocus.y += (ty - this.camFocus.y) * k;
@@ -748,6 +758,21 @@ export class TLPScene extends Phaser.Scene {
     frag?.spawn(fromX, fromY);
   }
 
+  /** Rosa swims beside whoever she talks to, facing them, so both stay visible. */
+  private async approach(p: { x: number; y: number }): Promise<void> {
+    const headY = p.y - 190;
+    const side = this.rosa.x <= p.x ? -1 : 1;
+    const tx = Phaser.Math.Clamp(p.x + side * 240, this.world.minX, this.world.maxX);
+    const ty = Phaser.Math.Clamp(headY, TW.minY, TW.floor - 80);
+    const c = this.rosa.ctrl;
+    c.vx = 0;
+    c.vy = 0;
+    c.facing = side > 0 ? -1 : 1;
+    this.talkFocus = { x: (tx + p.x) / 2, y: headY };
+    this.tweens.add({ targets: c, x: tx, y: ty, duration: 450, ease: 'Sine.easeOut' });
+    await wait(this, 460);
+  }
+
   private async say(lines: DialogueLine[]): Promise<void> {
     await this.ui.say(lines);
   }
@@ -814,6 +839,7 @@ export class TLPScene extends Phaser.Scene {
 
   private async talkOrganizer(): Promise<void> {
     this.busy = true;
+    await this.approach(this.builder.people.organizer);
     const lines: DialogueLine[][] = [
       [
         { who: 'Rosa', text: '¡Qué gran Tenerife LanD Party estamos haciendo!' },
@@ -839,6 +865,7 @@ export class TLPScene extends Phaser.Scene {
 
   private async talkTelepera(): Promise<void> {
     this.busy = true;
+    await this.approach(this.builder.people.telepera);
     if (this.save.flags.jargonA) {
       await this.say([{ who: 'Telepera', text: 'Presidenta, se lo digo con cariño: LAN viene de «Local Area Network». No lleva D.' }]);
       this.busy = false;
@@ -868,6 +895,7 @@ export class TLPScene extends Phaser.Scene {
 
   private async talkTelepero(): Promise<void> {
     this.busy = true;
+    await this.approach(this.builder.people.telepero);
     if (this.save.flags.jargonB) {
       await this.say([{ who: 'Telepero', text: 'Si quiere jugar de verdad, Kevin busca compañero. Está en la grada, al fondo. Es un crack.' }]);
       this.busy = false;
@@ -895,6 +923,7 @@ export class TLPScene extends Phaser.Scene {
 
   private async talkKevin(): Promise<void> {
     this.busy = true;
+    await this.approach(this.builder.people.kevin);
     if (this.gratitude.isDone('gg')) {
       await this.say([
         { who: 'Kevin', text: 'Antes se me cayó algo brillante debajo de las mesas de abajo. ¿Lo busca con su sonar ese?' },
@@ -933,6 +962,7 @@ export class TLPScene extends Phaser.Scene {
 
   private async talkJudge(): Promise<void> {
     this.busy = true;
+    await this.approach(this.builder.people.judge);
     if (this.costumeCount() < 3) {
       await this.say([
         { who: 'Jurado de la Summer-Con', text: '¿Viene al concurso de cosplay? Necesita un disfraz completo: corona, capa y tridente.' },
@@ -1032,6 +1062,7 @@ export class TLPScene extends Phaser.Scene {
 
   private async runInnova(): Promise<void> {
     this.busy = true;
+    await this.approach(this.builder.people.moderator);
     await this.say([
       { who: 'Moderador', text: 'Presidenta, su ponencia: «Blockchain, metaverso e IA aplicados a la gestión de rotondas». El público espera.' },
       { who: 'Rosa', text: 'Perfecto. Lo he preparado muchísimo. Bueno, he leído el título.' },

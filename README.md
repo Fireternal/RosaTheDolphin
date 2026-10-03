@@ -112,6 +112,12 @@ El tema principal es **«Rosa the Dolphin»** (`public/music/rosa-theme.ogg`, co
 por el autor del proyecto como música sin derechos de terceros. Dentro del nivel empieza suave y se abre con cada
 fragmento; en el final suena completo.
 
+## Tipografía de las «gracias»
+
+Cada «gracias» de los textos (diálogos, agradecimientos, tarjetas, HUD, intro y final) se escribe con la fuente
+**Chewy** (Sideshow, vía `@fontsource/chewy`, licencia Apache 2.0) y con colores de arcoíris
+(`src/ui/CuteText.ts`).
+
 ## Banda sonora generada (respaldo)
 
 `AudioManager` sintetiza todo con Web Audio (envolventes, armónicos, reverb por convolución) y un secuenciador

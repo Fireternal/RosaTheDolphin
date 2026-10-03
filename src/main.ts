@@ -1,3 +1,4 @@
+import '@fontsource/chewy/400.css';
 import Phaser from 'phaser';
 import { GAME_H, GAME_W } from './config';
 import { BootScene } from './scenes/BootScene';
