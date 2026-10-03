@@ -4,7 +4,7 @@ import { bus, EV } from '../core/EventBus';
 import { damp, dist, isDebug, wait } from '../core/util';
 import { isTouchDevice } from '../core/layout';
 import { DolphinPod, FishSchool, Jellyfish, Lumi, Manta, Turtle, TurtleQueue } from '../entities/Creatures';
-import { InteractMarker } from '../entities/InteractMarker';
+import { IconKind, InteractMarker, QuestIcon } from '../entities/InteractMarker';
 import { MelodyFragment } from '../entities/MelodyFragment';
 import { MusicalNote } from '../entities/MusicalNote';
 import { RosaPlayer } from '../entities/RosaPlayer';
@@ -35,6 +35,8 @@ interface Interactable {
   markerY: number;
   /** Show the inviting "near" marker before Rosa is in range. */
   invite?: boolean;
+  /** "!" (has a mission) or a speech bubble (just talks) floating over them. */
+  icon?: () => IconKind;
 }
 
 const ADD = Phaser.BlendModes.ADD;
@@ -67,6 +69,7 @@ export class GameScene extends Phaser.Scene {
   private puzzleBusy = false;
   private interactables: Interactable[] = [];
   private markers = new Map<string, InteractMarker>();
+  private icons = new Map<string, QuestIcon>();
   private busy = false;
   private ready = false;
   private gateOpen = false;
@@ -138,6 +141,7 @@ export class GameScene extends Phaser.Scene {
     this.createInteractables();
     this.registerSonarTargets();
     this.markers = new Map(this.interactables.map((it) => [it.id, new InteractMarker(this)]));
+    this.icons = new Map(this.interactables.filter((it) => it.icon).map((it) => [it.id, new QuestIcon(this)]));
 
     this.keys = this.input.keyboard!.addKeys({
       UP: 'UP', DOWN: 'DOWN', LEFT: 'LEFT', RIGHT: 'RIGHT', W: 'W', A: 'A', S: 'S', D: 'D',
@@ -298,17 +302,17 @@ export class GameScene extends Phaser.Scene {
         id: 'statue', markerY: -90, invite: true, pos: statuePos, radius: 420,
         label: () => (this.statueAwake ? 'E — INTERPRETAR LA MELODÍA' : 'E — ESCUCHAR'),
         enabled: () => !this.finaleDone,
-        action: () => this.interactStatue(),
+        action: () => this.interactStatue(), icon: () => (this.statueAwake ? 'quest' : null),
       },
       {
         id: 'conch', markerY: -150, invite: true, pos: () => ({ x: CONCH.x, y: CONCH.y - 120 }), radius: 260,
         label: () => 'E — ESCUCHAR', enabled: () => !this.puzzles.gate.solved,
-        action: () => void this.startGatePuzzle(),
+        action: () => void this.startGatePuzzle(), icon: () => 'quest',
       },
       {
         id: 'organ', markerY: -200, invite: true, pos: () => ({ x: ORGAN.x, y: ORGAN.y - 150 }), radius: 280,
         label: () => 'E — ESCUCHAR', enabled: () => !this.puzzles.organ.solved,
-        action: () => void this.startOrganPuzzle(),
+        action: () => void this.startOrganPuzzle(), icon: () => 'quest',
       },
       {
         id: 'clam', markerY: -110, invite: true, pos: () => ({ x: CLAM.x, y: CLAM.y - 80 }), radius: 240,
@@ -318,12 +322,12 @@ export class GameScene extends Phaser.Scene {
       {
         id: 'bruno', markerY: -80, invite: true, pos: () => this.bruno, radius: 190,
         label: () => 'E — HABLAR', enabled: () => this.bruno.mode === 'hide',
-        action: () => void this.talkBruno(),
+        action: () => void this.talkBruno(), icon: () => (this.save.flags.metMarea ? 'quest' : null),
       },
       {
         id: 'marea', markerY: -110, invite: true, pos: () => this.marea, radius: 230,
         label: () => 'E — HABLAR', enabled: () => !this.gratitude?.isDone('bruno') && this.bruno.mode !== 'follow',
-        action: () => void this.talkMarea(),
+        action: () => void this.talkMarea(), icon: () => (this.save.flags.metMarea ? 'talk' : 'quest'),
       },
       {
         id: 'lumi', markerY: -70, invite: false, pos: () => this.lumi, radius: 130,
@@ -593,6 +597,11 @@ export class GameScene extends Phaser.Scene {
       // never sit on top of Rosa: float above her when she is right there
       if (Math.abs(p.x - this.rosa.x) < 160) my = Math.min(my, this.rosa.y - 150);
       m.set(state, p.x, my, it.label().replace(/^E\s*—\s*/, ''), dt);
+      const icon = this.icons.get(it.id);
+      if (icon) {
+        const kind = it.enabled() && this.save.flags.introDone ? it.icon?.() ?? null : null;
+        icon.set(kind, p.x, p.y + it.markerY - 85, hideAll || state === 'active', dt);
+      }
     }
   }
 

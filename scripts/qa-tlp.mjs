@@ -193,6 +193,15 @@ try {
   await sleep(2500);
   check('Fragment 2 (under the desks, sonar)', await collect('t-cable', 2130, 1900));
 
+  // the router stays locked until every other activity is done (the party is lit until the end)
+  await teleport(2900, 1660);
+  await sleep(1500);
+  await snap('icons');
+  await press('e');
+  await settle();
+  s = await state();
+  check('Router locked while activities remain (no blackout yet)', s.puzzle === null && s.dark === 0 && !s.puzzles.includes('router'));
+
   // ---------------------------------------------------------------- cosplay
   await teleport(3200, 1740);
   await press('e');
@@ -263,7 +272,10 @@ try {
   check('Postureo keeps climbing', s.counters.postureo >= 80, `postureo=${s.counters.postureo}`);
   check('Fragment 6 (Innova)', await collect('t-innova', 5080, 1480, 30000));
 
-  // ---------------------------------------------------------------- the router → blackout
+  // ---------------------------------------------------------------- the router → blackout (last activity)
+  s = await untilTalking((st) => st.objective && /router/.test(st.objective) && !st.busy && !st.dialogue, 90000);
+  check('With six fragments the gamers complain about lag: router unlocked', !!s, s?.objective);
+  await settle();
   await teleport(2900, 1660);
   s = await openPuzzle('router');
   check('Router puzzle opens ("NO TOCAR")', !!s);

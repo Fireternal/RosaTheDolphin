@@ -259,4 +259,58 @@ export function makeFxTextures(scene: Phaser.Scene): void {
       ctx.fill();
     }
   });
+
+  // classic game icons over characters: "!" = has a mission for Rosa, bubble = just wants to chat
+  canvasTex(scene, 'icon_quest', 84, 100, (ctx, w) => {
+    const cx = w / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 3, 46, 36, 40, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = linear(ctx, 0, 6, 0, 86, [[0, '#fff3b0'], [0.5, '#ffd36e'], [1, '#e8a521']]);
+    ctx.beginPath();
+    ctx.ellipse(cx, 43, 34, 38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#7a4a00';
+    ctx.stroke();
+    ctx.fillStyle = '#5a2e00';
+    ctx.beginPath();
+    ctx.roundRect(cx - 7, 16, 14, 38, 7);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, 66, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(cx - 16, 26, 6, 10, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  canvasTex(scene, 'icon_talk', 100, 90, (ctx) => {
+    const bubble = (dx: number, dy: number, fill: string) => {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.roundRect(8 + dx, 6 + dy, 84, 56, 20);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(30 + dx, 58 + dy);
+      ctx.lineTo(24 + dx, 82 + dy);
+      ctx.lineTo(48 + dx, 60 + dy);
+      ctx.closePath();
+      ctx.fill();
+    };
+    bubble(3, 3, 'rgba(0,0,0,0.35)');
+    bubble(0, 0, '#ffffff');
+    ctx.strokeStyle = '#2a4a7a';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(8, 6, 84, 56, 20);
+    ctx.stroke();
+    ctx.fillStyle = '#2a4a7a';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(30 + i * 20, 34, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
 }

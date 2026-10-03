@@ -58,3 +58,43 @@ export class InteractMarker {
     this.c.destroy();
   }
 }
+
+export type IconKind = 'quest' | 'talk' | null;
+
+/**
+ * Icon floating over a character: "!" when they have a mission for Rosa, a speech
+ * bubble when they only want to chat. Visible from afar so players know where to go.
+ */
+export class QuestIcon {
+  private img: Phaser.GameObjects.Image;
+  private kind: IconKind = null;
+  private alpha = 0;
+  private t = Math.random() * 10;
+
+  constructor(scene: Phaser.Scene) {
+    this.img = scene.add.image(0, 0, 'icon_quest').setDepth(DEPTH.FG_FX + 1).setAlpha(0).setVisible(false);
+  }
+
+  /** `hidden` while the full "E" key-cap is showing for the same thing. */
+  set(kind: IconKind, x: number, y: number, hidden: boolean, dt: number): void {
+    this.t += dt;
+    if (kind && kind !== this.kind) {
+      this.img.setTexture(kind === 'quest' ? 'icon_quest' : 'icon_talk');
+      if (kind === 'quest') this.img.setScale(1.4);
+    }
+    if (kind) this.kind = kind;
+    const target = kind && !hidden ? 1 : 0;
+    this.alpha += (target - this.alpha) * damp(8, dt);
+    const quest = this.kind === 'quest';
+    const s = quest ? 0.78 + Math.sin(this.t * 5) * 0.06 : 0.62;
+    this.img.setScale(this.img.scaleX + (s - this.img.scaleX) * damp(10, dt));
+    this.img.setPosition(x, y + Math.sin(this.t * (quest ? 3.2 : 2)) * (quest ? 9 : 5));
+    this.img.setRotation(quest ? Math.sin(this.t * 2.4) * 0.08 : 0);
+    this.img.setAlpha(this.alpha);
+    this.img.setVisible(this.alpha > 0.02);
+  }
+
+  destroy(): void {
+    this.img.destroy();
+  }
+}

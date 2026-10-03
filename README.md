@@ -90,9 +90,13 @@ De izquierda a derecha: entrada → zona LAN → Summer-Con → K-Pop → TLP In
 4. **Summer-Con**: encuentra con el sonar la corona, la capa y el tridente (Rosa se los pone) y preséntate al concurso de cosplay. No gana: le dan las gracias por participar… y ella cree que es la mejor presidenta delfina de la historia.
 5. **K-Pop Random Play Dance**: repite el estribillo (puzle musical). Se hace viral… como meme.
 6. **TLP Innova**: ponencia «Blockchain, metaverso e IA aplicados a la gestión de rotondas»; el jugador elige sus respuestas.
-7. **El router («NO TOCAR»)**: Rosa baja el ping con una escala descendente… y deja sin red el recinto y sin luz a toda la ciudad (por las ventanas se ve apagarse).
+7. **El router («NO TOCAR»)**, siempre la última actividad: solo se desbloquea con los otros seis fragmentos, cuando los
+   teleperos empiezan a quejarse del lag. Rosa baja el ping con una escala descendente… y deja sin red el recinto y sin
+   luz a toda la ciudad (por las ventanas se ve apagarse). Así la fiesta se juega con luz y el apagón llega justo antes
+   del escenario.
 
-Por el camino hay teleperos que le preguntan cosas del mundillo (respuestas a elegir) y la megafonía no deja de
+Encima de quien tiene una misión flota un **«!»**; encima de quien solo quiere charlar, un **bocadillo de texto**
+(también en la Melodía I). Por el camino hay teleperos que le preguntan cosas del mundillo (respuestas a elegir) y la megafonía no deja de
 recordar quién paga. Con los siete fragmentos, el generador de la Coalición enciende la pantalla gigante con su
 logo y Rosa clausura el evento en el escenario principal: **¡GRACIAS, ROSA THE DOLPHIN!**… y «¡¡ES LAN!!».
 

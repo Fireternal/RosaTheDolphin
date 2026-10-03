@@ -4,7 +4,7 @@ import { bus, EV } from '../core/EventBus';
 import { damp, dist, isDebug, wait } from '../core/util';
 import { isTouchDevice } from '../core/layout';
 import { FishSchool, Lumi } from '../entities/Creatures';
-import { InteractMarker } from '../entities/InteractMarker';
+import { IconKind, InteractMarker, QuestIcon } from '../entities/InteractMarker';
 import { MelodyFragment } from '../entities/MelodyFragment';
 import { RosaPlayer } from '../entities/RosaPlayer';
 import { SwimInput, SwimWorld } from '../entities/SwimmingController';
@@ -29,6 +29,8 @@ interface Interactable {
   action: () => void;
   markerY: number;
   invite?: boolean;
+  /** "!" (has a mission) or a speech bubble (just talks) floating over them. */
+  icon?: () => IconKind;
 }
 
 interface Costume {
@@ -80,6 +82,7 @@ export class TLPScene extends Phaser.Scene {
   private puzzleBusy = false;
   private interactables: Interactable[] = [];
   private markers = new Map<string, InteractMarker>();
+  private icons = new Map<string, QuestIcon>();
   private busy = false;
   private ready = false;
   private finaleDone = false;
@@ -153,6 +156,7 @@ export class TLPScene extends Phaser.Scene {
     this.createInteractables();
     this.registerSonarTargets();
     this.markers = new Map(this.interactables.map((it) => [it.id, new InteractMarker(this)]));
+    this.icons = new Map(this.interactables.filter((it) => it.icon).map((it) => [it.id, new QuestIcon(this)]));
 
     this.keys = this.input.keyboard!.addKeys({
       UP: 'UP', DOWN: 'DOWN', LEFT: 'LEFT', RIGHT: 'RIGHT', W: 'W', A: 'A', S: 'S', D: 'D',
@@ -250,42 +254,43 @@ export class TLPScene extends Phaser.Scene {
     this.interactables = [
       {
         id: 'organizer', markerY: -140, invite: true, pos: above(SPOTS.organizer.x, SPOTS.organizer.y - 150), radius: 230,
-        label: () => 'E — HABLAR', enabled: () => !!this.save.flags.introDone, action: () => void this.talkOrganizer(),
+        label: () => 'E — HABLAR', enabled: () => !!this.save.flags.introDone, action: () => void this.talkOrganizer(), icon: () => 'talk',
       },
       {
         id: 'telepera', markerY: -140, invite: true, pos: above(SPOTS.telepera.x, SPOTS.telepera.y - 150), radius: 220,
-        label: () => 'E — HABLAR', enabled: () => true, action: () => void this.talkTelepera(),
+        label: () => 'E — HABLAR', enabled: () => true, action: () => void this.talkTelepera(), icon: () => 'talk',
       },
       {
         id: 'telepero', markerY: -140, invite: true, pos: above(SPOTS.telepero.x, SPOTS.telepero.y - 150), radius: 220,
-        label: () => 'E — HABLAR', enabled: () => true, action: () => void this.talkTelepero(),
+        label: () => 'E — HABLAR', enabled: () => true, action: () => void this.talkTelepero(), icon: () => 'talk',
       },
       {
         id: 'kevin', markerY: -120, invite: true, pos: above(SPOTS.kevin.x, SPOTS.kevin.y - 120), radius: 230,
         label: () => (this.gratitude?.isDone('gg') ? 'E — HABLAR' : 'E — JUGAR UNA PARTIDA'), enabled: () => true,
-        action: () => void this.talkKevin(),
+        action: () => void this.talkKevin(), icon: () => (this.gratitude?.isDone('gg') ? 'talk' : 'quest'),
       },
       {
         id: 'router', markerY: -340, invite: true, pos: above(SPOTS.router.x, SPOTS.router.y - 300), radius: 280,
-        label: () => 'E — ARREGLAR EL LAG', enabled: () => !this.puzzles.router.solved, action: () => void this.startRouter(),
+        label: () => (this.routerReady() ? 'E — ARREGLAR EL LAG' : 'E — MIRAR'), enabled: () => !this.puzzles.router.solved,
+        action: () => void (this.routerReady() ? this.startRouter() : this.lookAtRouter()), icon: () => (this.routerReady() ? 'quest' : null),
       },
       {
         id: 'judge', markerY: -150, invite: true, pos: above(SPOTS.judge.x, SPOTS.judge.y - 140), radius: 250,
         label: () => (this.costumeCount() >= 3 ? 'E — PARTICIPAR EN EL COSPLAY' : 'E — HABLAR'),
-        enabled: () => !this.gratitude?.isDone('cosplay'), action: () => void this.talkJudge(),
+        enabled: () => !this.gratitude?.isDone('cosplay'), action: () => void this.talkJudge(), icon: () => 'quest',
       },
       {
         id: 'boombox', markerY: -170, invite: true, pos: above(SPOTS.boombox.x, SPOTS.boombox.y - 140), radius: 260,
-        label: () => 'E — BAILAR', enabled: () => !this.puzzles.kpop.solved, action: () => void this.startKpop(),
+        label: () => 'E — BAILAR', enabled: () => !this.puzzles.kpop.solved, action: () => void this.startKpop(), icon: () => 'quest',
       },
       {
         id: 'moderator', markerY: -150, invite: true, pos: above(SPOTS.moderator.x + 60, SPOTS.moderator.y - 150), radius: 270,
-        label: () => 'E — DAR LA PONENCIA', enabled: () => !this.gratitude?.isDone('innova'), action: () => void this.runInnova(),
+        label: () => 'E — DAR LA PONENCIA', enabled: () => !this.gratitude?.isDone('innova'), action: () => void this.runInnova(), icon: () => 'quest',
       },
       {
         id: 'mic', markerY: -170, invite: true, pos: above(SPOTS.mic.x, SPOTS.mic.y - 120), radius: 340,
         label: () => (this.save.fragments.length >= 7 ? 'E — INTERPRETAR LA MELODÍA' : 'E — SUBIR AL ESCENARIO'),
-        enabled: () => !this.finaleDone, action: () => this.interactMic(),
+        enabled: () => !this.finaleDone, action: () => this.interactMic(), icon: () => (this.save.fragments.length >= 7 ? 'quest' : null),
       },
       {
         id: 'lumi', markerY: -70, invite: false, pos: () => this.lumi, radius: 130,
@@ -365,7 +370,8 @@ export class TLPScene extends Phaser.Scene {
     const n = this.save.fragments.length;
     if (this.save.completed) this.objectives.set('La TLP ha sido clausurada. Disfruta del recinto (a oscuras).');
     else if (!this.save.flags.introDone) this.objectives.set('Saluda a la organización.');
-    else if (n < 7) this.objectives.set('Participa en las actividades y reúne los fragmentos.', { cur: n, total: 7 });
+    else if (n < 6) this.objectives.set('Participa en las actividades y reúne los fragmentos.', { cur: n, total: 7 });
+    else if (n < 7) this.objectives.set('Los teleperos tienen lag: mira el router de la zona LAN.', { cur: n, total: 7 });
     else this.objectives.set('¡Al escenario principal (al este)! Interpreta la melodía.', { cur: 7, total: 7 });
   }
 
@@ -542,6 +548,11 @@ export class TLPScene extends Phaser.Scene {
       let my = p.y + it.markerY;
       if (Math.abs(p.x - this.rosa.x) < 160) my = Math.min(my, this.rosa.y - 150);
       m.set(state, p.x, my, it.label().replace(/^E\s*—\s*/, ''), dt);
+      const icon = this.icons.get(it.id);
+      if (icon) {
+        const kind = it.enabled() && this.save.flags.introDone ? it.icon?.() ?? null : null;
+        icon.set(kind, p.x, p.y + it.markerY - 85, hideAll || state === 'active', dt);
+      }
     }
   }
 
@@ -612,6 +623,7 @@ export class TLPScene extends Phaser.Scene {
     this.updateObjective();
     this.persist();
     if (count >= 7) this.time.delayedCall(2600, () => void this.onAllFragments());
+    else if (count === 6 && !this.puzzles.router.solved) this.time.delayedCall(2600, () => void this.onRouterReady());
   }
 
   private revealCostume(c: Costume): void {
@@ -788,6 +800,7 @@ export class TLPScene extends Phaser.Scene {
     if (!done('cosplay')) return '¡Disfraz completo! El jurado de la Summer-Con está junto al escenario de cosplay.';
     if (!this.puzzles.kpop.solved) return 'En la zona K-Pop hacen un Random Play Dance. Hable con el altavoz (E) y repita el estribillo.';
     if (!done('innova')) return 'En TLP Innova la esperan para su ponencia. Se titula… «Blockchain, metaverso e IA aplicados a la gestión de rotondas».';
+    if (s.fragments.length < 6) return 'Le faltan fragmentos por recoger: brillan en dorado donde terminó cada actividad.';
     if (!this.puzzles.router.solved) return 'Los teleperos se quejan del lag. El router principal está al final de la zona LAN… pero pone «NO TOCAR».';
     return 'Siga buscando: los fragmentos brillan en dorado.';
   }
@@ -827,7 +840,7 @@ export class TLPScene extends Phaser.Scene {
   private async talkTelepera(): Promise<void> {
     this.busy = true;
     if (this.save.flags.jargonA) {
-      await this.say([{ who: 'Telepera', text: 'Presidenta, ¿sabe que el internet va fatal? Hay un lag que te mueres. Alguien debería mirar el router.' }]);
+      await this.say([{ who: 'Telepera', text: 'Presidenta, se lo digo con cariño: LAN viene de «Local Area Network». No lleva D.' }]);
       this.busy = false;
       return;
     }
@@ -1060,6 +1073,34 @@ export class TLPScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- the router (and the blackout)
+
+  /** The router is the last activity: the party is lit until everything else is done. */
+  private routerReady(): boolean {
+    return this.save.fragments.length >= 6 || this.puzzles.router.solved;
+  }
+
+  private async lookAtRouter(): Promise<void> {
+    this.busy = true;
+    await this.say([
+      { who: 'Rosa', text: 'Un router enorme. Con lucecitas. Pone «NO TOCAR».' },
+      { who: 'Lumi', text: 'Mejor no lo toque, presidenta. Primero termine el resto de actividades… y luego, si eso, tampoco.' },
+    ]);
+    this.busy = false;
+  }
+
+  /** All the activities are done: now the gamers complain about the lag. */
+  private async onRouterReady(): Promise<void> {
+    while (this.busy || this.ui.dialogueActive || this.activePuzzle) await wait(this, 300);
+    this.updateObjective();
+    const g = this.builder.gamers;
+    this.shout(g[2].x, g[2].y - 260, '¡¡LAG!!', '#ff9a9a');
+    this.shout(g[9].x, g[9].y - 260, '¡Esto va a pedales!', '#ff9a9a', 600);
+    await this.say([
+      { who: 'Megafonía', text: 'Atención: se están registrando problemas de conexión en la zona LAN. Rogamos paciencia.' },
+      { who: 'Lumi', text: 'Presidenta, los teleperos se quejan de lag. El router principal está al final de la zona LAN.' },
+      { who: 'Rosa', text: '¿Lag? Eso lo arreglo yo con una melodía. Luego, al escenario a recoger las gracias.' },
+    ]);
+  }
 
   private async startRouter(): Promise<void> {
     if (!this.save.flags.routerIntro) {
