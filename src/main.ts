@@ -6,6 +6,7 @@ import { GameScene } from './scenes/GameScene';
 import { IntroScene } from './scenes/IntroScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PreloadScene } from './scenes/PreloadScene';
+import { TLPScene } from './scenes/TLPScene';
 import { UIScene } from './scenes/UIScene';
 import { isDebug } from './core/util';
 import { goImmersive, isTouchDevice } from './core/layout';
@@ -21,7 +22,7 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH, fullscreenTarget: document.documentElement },
   input: { activePointers: 3 },
   render: { antialias: true, powerPreference: 'high-performance' },
-  scene: [BootScene, PreloadScene, MenuScene, IntroScene, GameScene, UIScene, EndingScene],
+  scene: [BootScene, PreloadScene, MenuScene, IntroScene, GameScene, TLPScene, UIScene, EndingScene],
 });
 
 // Full screen: corner button or the F key (both are user gestures, as browsers require)

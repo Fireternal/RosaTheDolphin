@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { centerLayout } from '../core/layout';
 import { FONT_TITLE, FONT_UI, GOLD, GOLD_CSS } from '../config';
 import { AudioManager } from '../systems/AudioManager';
-import { SaveManager } from '../systems/SaveManager';
+import { lastSavedLevel, LevelId, SaveManager, TLPSave } from '../systems/SaveManager';
 import { SongStore } from '../systems/SongStore';
 import { MenuBackdrop } from './MenuBackdrop';
 
@@ -22,6 +22,9 @@ export class MenuScene extends Phaser.Scene {
   private musicStatus!: Phaser.GameObjects.Text;
   private musicItems: Phaser.GameObjects.Text[] = [];
   private musicIndex = 0;
+  private levels!: Phaser.GameObjects.Container;
+  private levelItems: Phaser.GameObjects.Text[] = [];
+  private levelIndex = 0;
   private static songLoaded = false;
   private leaving = false;
   private marker!: Phaser.GameObjects.Image;
@@ -54,9 +57,9 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5).setLetterSpacing(2).setDepth(30);
     [rosa, the].forEach((t, i) => this.tweens.add({ targets: t, alpha: { from: 0, to: 1 }, y: `+=${0}`, duration: 1400, delay: i * 300 }));
 
-    const hasSave = SaveManager.hasSave();
+    const hasSave = lastSavedLevel() !== null;
     const defs: [string, boolean, () => void][] = [
-      ['JUGAR', true, () => this.startNew()],
+      ['JUGAR', true, () => this.showLevels(true)],
       ['CONTINUAR', hasSave, () => this.continueGame()],
       ['CONTROLES', true, () => this.showControls(true)],
       ['MÚSICA', true, () => this.showMusic(true)],
@@ -75,11 +78,13 @@ export class MenuScene extends Phaser.Scene {
     });
     this.select(0, true);
 
-    this.add.text(960, 1050, 'Vertical slice · Melodía I — La Rotonda Sumergida', { fontFamily: FONT_UI, fontSize: '15px', color: '#9fc4e6' })
+    this.add.text(960, 1050, 'Melodía I — La Rotonda Sumergida  ·  Melodía II — La Tenerife LanD Party', { fontFamily: FONT_UI, fontSize: '15px', color: '#9fc4e6' })
       .setOrigin(0.5).setAlpha(0.5).setDepth(30);
     this.controls = this.buildControls();
     this.musicItems = [];
     this.music = this.buildMusic();
+    this.levelItems = [];
+    this.levels = this.buildLevels();
 
     const kb = this.input.keyboard!;
     kb.on('keydown', (e: KeyboardEvent) => this.onKey(e));
@@ -109,6 +114,14 @@ export class MenuScene extends Phaser.Scene {
     if (this.leaving) return;
     if (this.controls.visible) {
       if (['Escape', 'Enter', ' ', 'e', 'E'].includes(e.key)) this.showControls(false);
+      return;
+    }
+    if (this.levels.visible) {
+      if (e.key === 'Escape') this.showLevels(false);
+      else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this.selectLevel((this.levelIndex + 2) % 3);
+      else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') this.selectLevel((this.levelIndex + 1) % 3);
+      else if (e.key === '1' || e.key === '2') this.activateLevel(Number(e.key) - 1);
+      else if (e.key === 'Enter' || e.key === ' ' || e.key === 'e' || e.key === 'E') this.activateLevel(this.levelIndex);
       return;
     }
     if (this.music.visible) {
@@ -151,18 +164,76 @@ export class MenuScene extends Phaser.Scene {
     it.action();
   }
 
-  private startNew(): void {
+  private startNew(level: LevelId): void {
     this.leaving = true;
-    SaveManager.clear();
+    (level === 'tlp' ? TLPSave : SaveManager).clear();
     AudioManager.setLayerCount(0, 2);
     this.cameras.main.fadeOut(900, 2, 10, 26);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('IntroScene'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('IntroScene', { level }));
   }
 
   private continueGame(): void {
+    const level = lastSavedLevel();
+    if (!level) return;
     this.leaving = true;
     this.cameras.main.fadeOut(900, 2, 10, 26);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('GameScene', { continue: true }));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
+      this.scene.start(level === 'tlp' ? 'TLPScene' : 'GameScene', { continue: true }));
+  }
+
+  // ------------------------------------------------------------ level select
+
+  private buildLevels(): Phaser.GameObjects.Container {
+    const c = this.add.container(960, 540).setDepth(50).setVisible(false);
+    const dim = this.add.rectangle(0, 0, 5000, 3000, 0x020a1a, 0.6).setInteractive();
+    dim.on('pointerdown', () => this.showLevels(false));
+    const bg = this.add.graphics();
+    bg.fillStyle(0x04142e, 0.96);
+    bg.fillRoundedRect(-600, -300, 1200, 600, 26);
+    bg.lineStyle(2, GOLD, 0.6);
+    bg.strokeRoundedRect(-600, -300, 1200, 600, 26);
+    const block = this.add.zone(0, 0, 1200, 600).setInteractive();
+    c.add([dim, bg, block]);
+    c.add(this.add.text(0, -245, 'ELIGE MELODÍA', { fontFamily: FONT_TITLE, fontSize: '42px', color: GOLD_CSS, fontStyle: 'italic' }).setOrigin(0.5).setLetterSpacing(6));
+    const defs: [string, string][] = [
+      ['MELODÍA I — La Rotonda Sumergida', 'Colas de tortugas, aguas residuales y una gruta para los delfines alemanes.'],
+      ['MELODÍA II — La Tenerife LanD Party', 'Rosa subvenciona la primera TLP acuática. Es LAN, presidenta.'],
+      ['Volver', ''],
+    ];
+    defs.forEach(([l, sub], i) => {
+      const y = -120 + i * 130;
+      const t = this.add.text(0, y, l, { fontFamily: FONT_TITLE, fontSize: i < 2 ? '38px' : '32px', color: '#eaf6ff' }).setOrigin(0.5);
+      const z = this.add.zone(0, y + 14, 1100, 110).setInteractive({ useHandCursor: true });
+      z.on('pointerover', () => this.selectLevel(i));
+      z.on('pointerdown', () => this.activateLevel(i));
+      c.add([z, t]);
+      if (sub) c.add(this.add.text(0, y + 44, sub, { fontFamily: FONT_UI, fontSize: '19px', color: '#9fc4e6' }).setOrigin(0.5));
+      this.levelItems.push(t);
+    });
+    c.add(this.add.text(0, 262, 'Empieza desde el principio de esa melodía (CONTINUAR sigue tu última partida).', { fontFamily: FONT_UI, fontSize: '16px', color: '#9fc4e6' }).setOrigin(0.5).setAlpha(0.8));
+    return c;
+  }
+
+  private selectLevel(i: number): void {
+    if (i !== this.levelIndex) AudioManager.uiMove();
+    this.levelIndex = i;
+    this.levelItems.forEach((t, k) => t.setColor(k === i ? GOLD_CSS : '#eaf6ff').setScale(k === i ? 1.06 : 1));
+  }
+
+  private activateLevel(i: number): void {
+    if (this.leaving) return;
+    AudioManager.uiSelect();
+    if (i === 0) this.startNew('rotonda');
+    else if (i === 1) this.startNew('tlp');
+    else this.showLevels(false);
+  }
+
+  private showLevels(v: boolean): void {
+    this.levels.setVisible(v);
+    if (v) {
+      this.selectLevel(0);
+      this.tweens.add({ targets: this.levels, alpha: { from: 0, to: 1 }, duration: 250 });
+    }
   }
 
   private buildControls(): Phaser.GameObjects.Container {

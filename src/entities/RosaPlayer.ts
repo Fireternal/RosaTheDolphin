@@ -100,6 +100,15 @@ export class RosaPlayer {
     return this.localToWorld(lx, ly);
   }
 
+  /** Body rotation (radians) and facing sign — for things she wears (crowns, capes…). */
+  get bodyRotation(): number {
+    return this.angle;
+  }
+
+  get facingSign(): number {
+    return this.visScale < 0 ? -1 : 1;
+  }
+
   get x(): number {
     return this.ctrl.x;
   }

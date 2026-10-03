@@ -108,6 +108,14 @@ class AudioManagerImpl {
   private musicBus!: GainNode;
   private musicDuck!: GainNode;
   private sfxBus!: GainNode;
+  /** Tiny UI blips (typing, menu moves): heard, but they never duck the music. */
+  private uiBus!: GainNode;
+  /** Lowers the music while sound effects play (driven by `sfxMeter`). */
+  private sfxDuck!: GainNode;
+  private sfxMeter!: AnalyserNode;
+  private meterData: Float32Array<ArrayBuffer> | null = null;
+  private duckHoldUntil = 0;
+  private duckOn = false;
   private reverbSend!: GainNode;
   private noise!: AudioBuffer;
   private layerNodes = new Map<LayerId, GainNode>();
@@ -183,7 +191,10 @@ class AudioManagerImpl {
     this.musicDuck.gain.value = 1;
     this.musicBus = ctx.createGain();
     this.musicBus.gain.value = 0.9;
-    this.musicBus.connect(this.musicDuck);
+    // music → sfxDuck (auto ducking) → musicDuck (scripted silences) → master
+    this.sfxDuck = ctx.createGain();
+    this.sfxDuck.gain.value = 1;
+    this.musicBus.connect(this.sfxDuck).connect(this.musicDuck);
     this.musicDuck.connect(this.master);
     const musicVerb = ctx.createGain();
     musicVerb.gain.value = 0.45;
@@ -195,6 +206,16 @@ class AudioManagerImpl {
     const sfxVerb = ctx.createGain();
     sfxVerb.gain.value = 0.5;
     this.sfxBus.connect(sfxVerb).connect(this.reverbSend);
+    this.uiBus = ctx.createGain();
+    this.uiBus.gain.value = 0.9;
+    this.uiBus.connect(this.master);
+
+    // sidechain: when the effects bus is sounding, the music steps back a little
+    this.sfxMeter = ctx.createAnalyser();
+    this.sfxMeter.fftSize = 512;
+    this.sfxBus.connect(this.sfxMeter);
+    this.meterData = new Float32Array(this.sfxMeter.fftSize);
+    setInterval(() => this.updateSfxDuck(), 40);
 
     this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = this.noise.getChannelData(0);
@@ -608,7 +629,7 @@ class AudioManagerImpl {
 
   uiMove(): void {
     if (!this.ctx) return;
-    this.voice('chime', this.sfxBus, 91, this.now() + 0.005, 0.08, 0.08);
+    this.voice('chime', this.uiBus, 91, this.now() + 0.005, 0.08, 0.08);
   }
 
   uiSelect(): void {
@@ -621,7 +642,7 @@ class AudioManagerImpl {
   talk(): void {
     if (!this.ctx) return;
     const notes = [72, 74, 76, 79, 81];
-    this.voice('chime', this.sfxBus, notes[Math.floor(Math.random() * notes.length)], this.now() + 0.005, 0.05, 0.05);
+    this.voice('chime', this.uiBus, notes[Math.floor(Math.random() * notes.length)], this.now() + 0.005, 0.05, 0.05);
   }
 
   /** "Wah wah wah waaah": the problem is still there. */
@@ -655,6 +676,37 @@ class AudioManagerImpl {
       o.stop(t + dur + 0.4);
       vib.stop(t + dur + 0.4);
     }
+  }
+
+  /** Everything switches off: a falling hum and a thump (the city blackout). */
+  powerDown(): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t = this.now() + 0.02;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(240, t);
+    o.frequency.exponentialRampToValueAtTime(18, t + 1.8);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(1800, t);
+    lp.frequency.exponentialRampToValueAtTime(120, t + 1.8);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.22, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2);
+    o.connect(lp).connect(g).connect(this.sfxBus);
+    o.start(t);
+    o.stop(t + 2.1);
+    this.noiseBurst(t + 1.7, 0.6, 90, 40, 0.35, 'lowpass');
+  }
+
+  /** A diesel generator coughs into life. */
+  generator(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    for (let i = 0; i < 5; i++) this.noiseBurst(t + i * 0.22, 0.18, 160, 80, 0.18 + i * 0.03, 'lowpass');
+    this.noiseBurst(t + 1.2, 2.4, 110, 70, 0.22, 'lowpass');
   }
 
   /** Sparkling "twinkle" run for the rainbow celebration. */
@@ -854,6 +906,23 @@ class AudioManagerImpl {
 
   private countFragmentLayers(): number {
     return FRAGMENT_LAYERS.filter((id) => this.layerOn.get(id)).length;
+  }
+
+  /** Automatic ducking: music at ~55% while effects play, back up smoothly after. */
+  private updateSfxDuck(): void {
+    if (!this.ctx || !this.meterData || this.ctx.state !== 'running') return;
+    this.sfxMeter.getFloatTimeDomainData(this.meterData);
+    let sum = 0;
+    for (let i = 0; i < this.meterData.length; i++) sum += this.meterData[i] * this.meterData[i];
+    const rms = Math.sqrt(sum / this.meterData.length);
+    const now = this.ctx.currentTime;
+    if (rms > 0.012) this.duckHoldUntil = now + 0.35;
+    const want = now < this.duckHoldUntil;
+    if (want === this.duckOn) return;
+    this.duckOn = want;
+    const g = this.sfxDuck.gain;
+    g.cancelScheduledValues(now);
+    g.setTargetAtTime(want ? 0.55 : 1, now, want ? 0.04 : 0.35);
   }
 
   /** Smoothly lower (or restore) all music — used for the finale's moment of silence. */

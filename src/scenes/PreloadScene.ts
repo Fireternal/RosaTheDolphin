@@ -5,6 +5,7 @@ import { makeCreatureTextures } from '../art/CreatureArt';
 import { makeEnvTextures } from '../art/EnvArt';
 import { makeFxTextures } from '../art/FxArt';
 import { makeRosaTextures } from '../art/RosaArt';
+import { makeTLPTextures } from '../art/TLPArt';
 
 /**
  * Every asset of this vertical slice is generated procedurally, so the game runs
@@ -25,6 +26,7 @@ export class PreloadScene extends Phaser.Scene {
       makeRosaTextures(this);
       makeCreatureTextures(this);
       makeEnvTextures(this);
+      makeTLPTextures(this);
       this.scene.start('MenuScene');
     });
   }

@@ -21,7 +21,46 @@ const SPEAKER_COLORS: Record<string, string> = {
   Bruno: '#d9e98a',
   'La Rotonda': WARM_CSS,
   'Familia Delfín': '#9fd0ff',
+  // Melodía II — La Tenerife LanD Party
+  Organizadora: '#7fe3ff',
+  Kevin: '#b5f27a',
+  Telepera: '#ff9fe0',
+  Telepero: '#9fb6ff',
+  'Jurado de la Summer-Con': '#ffb36b',
+  'Fans del K-Pop': '#ff8fc8',
+  Moderador: '#d6c2ff',
+  Público: '#cfe6ff',
+  Megafonía: '#ffe08a',
 };
+
+export interface ChoiceOption {
+  text: string;
+}
+
+interface RhythmNote {
+  lane: number;
+  t: number;
+  img: Phaser.GameObjects.Image;
+  glow: Phaser.GameObjects.Image;
+  state: 'pending' | 'hit' | 'miss';
+}
+
+interface RhythmState {
+  lanes: NoteName[];
+  notes: RhythmNote[];
+  c: Phaser.GameObjects.Container;
+  feedback: Phaser.GameObjects.Text;
+  score: Phaser.GameObjects.Text;
+  laneGlows: Phaser.GameObjects.Image[];
+  hits: number;
+  end: number;
+  resolve: (r: { hits: number; total: number }) => void;
+}
+
+const R_HIT_X = -380;
+const R_SPEED = 0.5; // px per ms
+const R_WINDOW = 240; // ms
+const R_LANE_Y = [-60, 10, 80];
 
 interface Slot {
   ring: Phaser.GameObjects.Image;
@@ -94,6 +133,19 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
   private controlsPanel!: Phaser.GameObjects.Container;
   paused = false;
   private gameRef: { handleEscape(): boolean; goToMenu(): void } | null = null;
+  private gameKey = 'GameScene';
+  private statusText!: Phaser.GameObjects.Text;
+
+  // multiple-choice answers (Rosa pretending she knows what everyone is talking about)
+  private choiceBox!: Phaser.GameObjects.Container;
+  private choiceItems: Phaser.GameObjects.Text[] = [];
+  private choiceIndex = 0;
+  private choiceResolve: ((i: number) => void) | null = null;
+  private choiceOpenedAt = 0;
+  choiceActive = false;
+
+  // rhythm minigame
+  private rhythmState: RhythmState | null = null;
 
   private pressedCodes = new Set<string>();
   private corners: { TL: Phaser.GameObjects.Container; TR: Phaser.GameObjects.Container; BL: Phaser.GameObjects.Container; BR: Phaser.GameObjects.Container } | null = null;
@@ -104,8 +156,10 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     super('UIScene');
   }
 
-  bindGame(game: { handleEscape(): boolean; goToMenu(): void }): void {
+  /** `key` is the scene that pauses/resumes with the pause menu. */
+  bindGame(game: { handleEscape(): boolean; goToMenu(): void }, key = 'GameScene'): void {
     this.gameRef = game;
+    this.gameKey = key;
   }
 
   create(): void {
@@ -121,6 +175,11 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.puzzleVisible = false;
     this.overlayActive = false;
     this.paused = false;
+    this.choiceActive = false;
+    this.choiceResolve = null;
+    this.choiceItems = [];
+    this.rhythmState = null;
+    this.gameKey = 'GameScene';
 
 
     this.pressedCodes.clear();
@@ -134,12 +193,13 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.touch = null;
     this.buildHud();
     this.buildDialogue();
+    this.buildChoices();
     this.buildPuzzlePanel();
     this.buildPause();
     if (isTouchDevice()) this.touch = new TouchControls(this, () => this.onTouchPause());
     centerLayout(this, (ox, oy) => this.layoutCorners(ox, oy));
     this.input.on('pointerdown', () => {
-      if (this.dialogueActive) this.advanceDialogue();
+      if (this.dialogueActive && !this.choiceActive) this.advanceDialogue();
       else if (this.overlayActive && this.time.now > this.overlayCanSkipAt) this.closeOverlay();
     });
   }
@@ -155,7 +215,7 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     const BR = this.add.container(0, 0);
     this.corners = { TL, TR, BL, BR };
     this.hud.add([TL, TR, BL, BR]);
-    TL.add(this.add.image(190, 110, 'shade').setDisplaySize(620, 300).setAlpha(0.8));
+    TL.add(this.add.image(190, 120, 'shade').setDisplaySize(620, 330).setAlpha(0.8));
     TR.add(this.add.image(1700, 80, 'shade').setDisplaySize(720, 230).setAlpha(0.8));
     BL.add(this.add.image(150, 1010, 'shade').setDisplaySize(420, 200).setAlpha(0.6));
     const title = this.add.text(48, 34, 'ROSA THE DOLPHIN', { fontFamily: FONT_TITLE, fontSize: '30px', color: GOLD_CSS, fontStyle: 'italic' })
@@ -184,6 +244,9 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       this.notesRow.push(t);
       TL.add(t);
     });
+
+    this.statusText = this.add.text(50, 236, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffe08a', lineSpacing: 4 }).setAlpha(0.95);
+    TL.add(this.statusText);
 
     // objective (top right)
     this.objTitle = this.add.text(1872, 36, 'OBJETIVO', { fontFamily: FONT_UI, fontSize: '15px', color: GOLD_CSS }).setOrigin(1, 0).setLetterSpacing(5);
@@ -269,6 +332,12 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       if (n === newest) this.tweens.add({ targets: t, scale: { from: 1.8, to: 1 }, duration: 600, ease: 'Back.easeOut' });
     });
     this.keys.forEach((k) => this.drawKey(k, known.includes(k.note), false));
+  }
+
+  /** Extra HUD line under the notes (level 2: "Postureo" and corrections). */
+  setStatus(text: string, flash = false): void {
+    this.statusText.setText(text);
+    if (flash) this.tweens.add({ targets: this.statusText, scale: { from: 1.15, to: 1 }, alpha: { from: 0.4, to: 0.95 }, duration: 500 });
   }
 
   setGratitudeCount(n: number, animate = false): void {
@@ -385,6 +454,8 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
 
   say(lines: DialogueLine[]): Promise<void> {
     return new Promise((resolve) => {
+      this.tweens.killTweensOf(this.dlgBox);
+      this.dlgHint.setVisible(true);
       this.dlgLines = lines;
       this.dlgIndex = 0;
       this.dialogueActive = true;
@@ -422,6 +493,202 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       return;
     }
     this.showLine();
+  }
+
+  // =========================================================== choices
+
+  private buildChoices(): void {
+    this.choiceBox = this.add.container(960, 0).setVisible(false).setDepth(2);
+  }
+
+  /** Someone asks Rosa something; the player picks her answer. Resolves with the option index. */
+  choose(q: DialogueLine, options: string[]): Promise<number> {
+    return new Promise((resolve) => {
+      this.tweens.killTweensOf(this.dlgBox);
+      this.tweens.killTweensOf(this.choiceBox);
+      this.dlgLines = [q];
+      this.dlgIndex = 0;
+      this.dlgShown = q.text.length;
+      this.dlgName.setText(q.who).setColor(SPEAKER_COLORS[q.who] ?? '#ffffff');
+      this.dlgText.setText(q.text);
+      this.dlgHint.setVisible(false);
+      this.dlgBox.setVisible(true).setAlpha(1).setY(900);
+      this.dialogueActive = true;
+      this.choiceActive = true;
+      this.choiceResolve = resolve;
+      this.choiceOpenedAt = this.time.now;
+      this.choiceBox.removeAll(true);
+      this.choiceItems = [];
+      const h = 66;
+      const top = 780 - (options.length - 1) * h;
+      options.forEach((o, i) => {
+        const bg = this.add.graphics();
+        bg.fillStyle(0x04142e, 0.9);
+        bg.fillRoundedRect(-600, -28, 1200, 56, 14);
+        bg.lineStyle(2, GOLD, 0.35);
+        bg.strokeRoundedRect(-600, -28, 1200, 56, 14);
+        const t = this.add.text(-570, 0, `${i + 1}  ▸  ${o}`, { fontFamily: FONT_UI, fontSize: '24px', color: '#eaf6ff' }).setOrigin(0, 0.5);
+        const zone = this.add.zone(0, 0, 1200, 56).setInteractive({ useHandCursor: true });
+        zone.on('pointerover', () => this.selectChoice(i));
+        zone.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
+          ev?.stopPropagation?.();
+          this.pickChoice(i);
+        });
+        this.choiceBox.add(this.add.container(0, top + i * h, [bg, zone, t]));
+        this.choiceItems.push(t);
+      });
+      this.choiceBox.setVisible(true).setAlpha(1).setY(20);
+      this.tweens.add({ targets: this.choiceBox, y: 0, duration: 200, ease: 'Sine.easeOut' });
+      this.selectChoice(0, true);
+    });
+  }
+
+  private selectChoice(i: number, silent = false): void {
+    if (i < 0 || i >= this.choiceItems.length) return;
+    if (i !== this.choiceIndex && !silent) AudioManager.uiMove();
+    this.choiceIndex = i;
+    this.choiceItems.forEach((t, k) => t.setColor(k === i ? GOLD_CSS : '#eaf6ff'));
+  }
+
+  private pickChoice(i: number): void {
+    if (!this.choiceActive || this.time.now - this.choiceOpenedAt < 250 || i >= this.choiceItems.length) return;
+    AudioManager.uiSelect();
+    this.choiceActive = false;
+    this.dialogueActive = false;
+    this.dlgHint.setVisible(true);
+    // the options go at once; the box fades (unless the next line reopens it)
+    this.choiceBox.setVisible(false);
+    this.tweens.add({ targets: this.dlgBox, alpha: 0, duration: 180, onComplete: () => {
+      if (!this.dialogueActive) this.dlgBox.setVisible(false);
+    } });
+    const r = this.choiceResolve;
+    this.choiceResolve = null;
+    r?.(i);
+  }
+
+  // =========================================================== rhythm minigame
+
+  /**
+   * A quick rhythm game: notes slide towards the line; play each one as it arrives.
+   * `chart` is a list of [lane, beat]. Nobody can lose — it just returns the hits.
+   */
+  rhythm(title: string, lanes: NoteName[], chart: [number, number][], bpm = 100): Promise<{ hits: number; total: number }> {
+    return new Promise((resolve) => {
+      const c = this.add.container(960, 860).setDepth(6).setAlpha(0);
+      const bg = this.add.graphics();
+      bg.fillStyle(0x0a0420, 0.86);
+      bg.fillRoundedRect(-560, -170, 1120, 330, 26);
+      bg.lineStyle(2, 0xff5fd2, 0.6);
+      bg.strokeRoundedRect(-560, -170, 1120, 330, 26);
+      c.add(bg);
+      c.add(this.add.text(0, -146, title, { fontFamily: FONT_TITLE, fontSize: '26px', color: '#ff9fe0', fontStyle: 'italic' }).setOrigin(0.5, 0));
+      const touch = isTouchDevice();
+      const laneGlows: Phaser.GameObjects.Image[] = [];
+      lanes.forEach((n, i) => {
+        const y = R_LANE_Y[i];
+        const col = NOTE_INFO[n].color;
+        const g = this.add.graphics();
+        g.lineStyle(3, col, 0.35);
+        g.lineBetween(R_HIT_X, y, 530, y);
+        c.add(g);
+        const lg = this.add.image(R_HIT_X, y, 'glow').setTint(col).setBlendMode(ADD).setScale(0.45).setAlpha(0.25);
+        laneGlows.push(lg);
+        c.add(lg);
+        c.add(this.add.image(R_HIT_X, y, 'ring').setTint(col).setScale(0.5));
+        c.add(this.add.text(-470, y, touch ? n : `${NOTE_ORDER.indexOf(n) + 1} · ${n}`, { fontFamily: FONT_TITLE, fontSize: '24px', color: NOTE_INFO[n].css }).setOrigin(0.5));
+        const zone = this.add.zone(0, y, 1100, 66).setInteractive();
+        zone.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
+          ev?.stopPropagation?.();
+          this.rhythmPress(i);
+        });
+        c.add(zone);
+      });
+      const feedback = this.add.text(R_HIT_X + 150, -112, '', { fontFamily: FONT_TITLE, fontSize: '28px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+      const score = this.add.text(500, -112, '', { fontFamily: FONT_UI, fontSize: '20px', color: '#ffe08a' }).setOrigin(1, 0.5);
+      c.add([feedback, score]);
+      c.add(this.add.text(0, 136, touch ? 'Toca la línea de cada nota cuando llegue al círculo' : 'Pulsa la tecla de cada nota cuando llegue al círculo', { fontFamily: FONT_UI, fontSize: '16px', color: '#cdb6ff' }).setOrigin(0.5));
+      this.tweens.add({ targets: c, alpha: 1, y: { from: 900, to: 860 }, duration: 300 });
+      this.touch?.setVisible(false);
+
+      const beatMs = 60000 / bpm;
+      const start = this.time.now + 2200;
+      const notes: RhythmNote[] = chart.map(([lane, beat]) => {
+        const col = NOTE_INFO[lanes[lane]].color;
+        const glow = this.add.image(600, R_LANE_Y[lane], 'glow').setTint(col).setBlendMode(ADD).setScale(0.4).setAlpha(0);
+        const img = this.add.image(600, R_LANE_Y[lane], 'glyph').setTint(col).setScale(0.36).setAlpha(0);
+        c.add([glow, img]);
+        return { lane, t: start + beat * beatMs, img, glow, state: 'pending' as const };
+      });
+      const end = Math.max(...notes.map((n) => n.t)) + 900;
+      this.rhythmState = { lanes, notes, c, feedback, score, laneGlows, hits: 0, end, resolve };
+      score.setText(`0 / ${notes.length}`);
+    });
+  }
+
+  get rhythmActive(): boolean {
+    return !!this.rhythmState;
+  }
+
+  private rhythmPress(lane: number): void {
+    const r = this.rhythmState;
+    if (!r || lane < 0 || lane >= r.lanes.length) return;
+    const now = this.time.now;
+    let best: RhythmNote | null = null;
+    for (const n of r.notes) {
+      if (n.state !== 'pending' || n.lane !== lane) continue;
+      if (!best || Math.abs(n.t - now) < Math.abs(best.t - now)) best = n;
+    }
+    const lg = r.laneGlows[lane];
+    this.tweens.add({ targets: lg, alpha: { from: 0.9, to: 0.25 }, scale: { from: 0.7, to: 0.45 }, duration: 260 });
+    if (best && Math.abs(best.t - now) <= R_WINDOW) {
+      best.state = 'hit';
+      r.hits++;
+      AudioManager.playNote(r.lanes[lane], { inst: 'bell', vel: 0.5 });
+      const perfect = Math.abs(best.t - now) < R_WINDOW * 0.4;
+      this.rhythmFeedback(perfect ? '¡PERFECTO!' : '¡BIEN!', perfect ? '#ffe08a' : '#b5f27a');
+      this.tweens.add({ targets: [best.img, best.glow], scale: 1, alpha: 0, duration: 300 });
+      r.score.setText(`${r.hits} / ${r.notes.length}`);
+    } else {
+      AudioManager.playNote(r.lanes[lane], { inst: 'bell', vel: 0.18 });
+    }
+  }
+
+  private rhythmFeedback(text: string, color: string): void {
+    const f = this.rhythmState?.feedback;
+    if (!f) return;
+    this.tweens.killTweensOf(f);
+    f.setText(text).setColor(color).setAlpha(1).setScale(1.25);
+    this.tweens.add({ targets: f, scale: 1, duration: 200 });
+    this.tweens.add({ targets: f, alpha: 0, delay: 500, duration: 300 });
+  }
+
+  private updateRhythm(lanePresses: number[]): void {
+    const r = this.rhythmState;
+    if (!r) return;
+    lanePresses.forEach((l) => this.rhythmPress(l));
+    const now = this.time.now;
+    for (const n of r.notes) {
+      if (n.state === 'hit') continue;
+      const x = R_HIT_X + (n.t - now) * R_SPEED;
+      if (n.state === 'pending') {
+        n.img.setX(x).setAlpha(x > 540 ? 0 : 1);
+        n.glow.setX(x).setAlpha(x > 540 ? 0 : 0.6);
+        if (now - n.t > R_WINDOW) {
+          n.state = 'miss';
+          this.rhythmFeedback('¡Ups!', '#ff9a9a');
+          this.tweens.add({ targets: [n.img, n.glow], alpha: 0, duration: 300 });
+        }
+      } else if (n.img.alpha > 0) {
+        n.img.setX(x);
+        n.glow.setX(x);
+      }
+    }
+    if (now > r.end) {
+      this.rhythmState = null;
+      this.touch?.setVisible(true);
+      this.tweens.add({ targets: r.c, alpha: 0, duration: 300, onComplete: () => r.c.destroy() });
+      r.resolve({ hits: r.hits, total: r.notes.length });
+    }
   }
 
   // =========================================================== puzzle panel
@@ -870,10 +1137,10 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     this.pausePanel.setVisible(on);
     this.controlsPanel.setVisible(false);
     if (on) {
-      this.scene.pause('GameScene');
+      this.scene.pause(this.gameKey);
       this.selectPause(0);
     } else {
-      this.scene.resume('GameScene');
+      this.scene.resume(this.gameKey);
     }
   }
 
@@ -884,6 +1151,11 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
     };
     const pressed: Record<string, boolean> = {};
     for (const [name, code] of Object.entries(codes)) pressed[name] = this.pressedCodes.has(code) || (name === 'ENTER' && this.pressedCodes.has('NumpadEnter'));
+    const digits: number[] = [];
+    for (const code of this.pressedCodes) {
+      const m = /^(?:Digit|Numpad)([1-7])$/.exec(code);
+      if (m) digits.push(Number(m[1]));
+    }
     this.pressedCodes.clear();
     const confirm = pressed.E || pressed.SPACE || pressed.ENTER;
 
@@ -891,6 +1163,12 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
       const muted = AudioManager.toggleMute();
       bus.emit(EV.MUTE_CHANGED, muted);
       this.toast(muted ? 'Sonido desactivado' : 'Sonido activado');
+    }
+    if (this.rhythmState) {
+      const r = this.rhythmState;
+      // keys 1-7 play notes: map each to its lane (DO RE MI… → 1 2 3…)
+      this.updateRhythm(digits.map((d) => r.lanes.indexOf(NOTE_ORDER[d - 1])).filter((l) => l >= 0));
+      return;
     }
     if (this.paused) {
       if (pressed.ESC || pressed.P) {
@@ -903,6 +1181,15 @@ export class UIScene extends Phaser.Scene implements GratitudePresenter, Objecti
         if (this.controlsPanel.visible) this.controlsPanel.setVisible(false);
         else this.activatePause(this.pauseIndex);
       }
+      return;
+    }
+    if (this.choiceActive) {
+      const n = this.choiceItems.length;
+      if (pressed.UP || pressed.W) this.selectChoice((this.choiceIndex + n - 1) % n);
+      if (pressed.DOWN || pressed.S) this.selectChoice((this.choiceIndex + 1) % n);
+      const d = digits.find((x) => x <= n);
+      if (d) this.pickChoice(d - 1);
+      else if (confirm) this.pickChoice(this.choiceIndex);
       return;
     }
     if (this.dialogueActive) {

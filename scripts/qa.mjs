@@ -107,7 +107,11 @@ try {
   await snap('menu');
   check('Menu loads', (await activeScenes()).includes('MenuScene'));
 
-  // JUGAR → intro → level
+  // JUGAR → level select → Melodía I → intro → level
+  await press('Enter');
+  await sleep(1500);
+  await snap('level-select');
+  check('JUGAR opens the level select', await page.evaluate(() => window.__ROSA__.game.scene.getScene('MenuScene').levels.visible));
   await press('Enter');
   await page.waitForFunction(() => window.__ROSA__.game.scene.isActive('IntroScene'), null, { timeout: 30000 });
   await sleep(3500);
@@ -375,12 +379,11 @@ try {
   await page.waitForFunction(() => window.__ROSA__.game.scene.getScene('EndingScene').ready === true, null, { timeout: 180000 });
   await press('Enter');
   await page.waitForFunction(() => window.__ROSA__.game.scene.isActive('IntroScene'), null, { timeout: 90000 });
-  check('VOLVER A JUGAR restarts the adventure', true);
+  check('SIGUIENTE: MELODÍA II goes on to level 2', true);
   await press('Space');
-  await page.waitForFunction(() => window.__ROSA__.game.scene.isActive('GameScene'), null, { timeout: 60000 });
-  await sleep(3000);
-  s = await state();
-  check('Restart begins with a clean slate', s && s.fragments.length === 0 && s.notes.length === 0);
+  await page.waitForFunction(() => window.__ROSA__.game.scene.isActive('TLPScene'), null, { timeout: 90000 });
+  s = await waitFor((st) => st.level === 'tlp', 60000);
+  check('Level 2 begins with a clean slate', s && s.fragments.length === 0 && s.missions.length === 0);
 } catch (err) {
   check('QA run finished without exceptions', false, String(err?.stack ?? err));
   await snap('failure').catch(() => {});

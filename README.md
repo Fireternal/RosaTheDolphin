@@ -2,7 +2,8 @@
 
 *Una aventura en busca de la melodía perfecta.*
 
-Vertical slice (5–10 min) de una aventura submarina musical y satírica en 2D: **Melodía I — La Rotonda Sumergida**.
+Aventura submarina musical y satírica en 2D con dos niveles: **Melodía I — La Rotonda Sumergida** y
+**Melodía II — La Tenerife LanD Party**. En el menú, **JUGAR** deja elegir la melodía (se puede ir directo a la II).
 
 Se acercan las elecciones en el océano. **Rosa**, presidenta de la **Coalición Delfinaria**, aún no tiene su
 melodía perfecta… y sin melodía nadie le dará las gracias. Y a Rosa le encanta que le den las gracias.
@@ -73,6 +74,28 @@ Las 7 notas sueltas forman el repertorio de Rosa (dos de ellas solo aparecen con
 de mar que la acompaña, da pistas según el progreso (E junto a ella). El progreso se guarda en `localStorage`
 (menú → CONTINUAR).
 
+## Melodía II — La Tenerife LanD Party
+
+Rosa subvenciona la Tenerife LAN Party (y lo dice en cada cartel: «Con la colaboración de la Coalición
+Delfinaria», «ESTO LO PAGO YO»). Además ha mandado inundar el Recinto Ferial para sentirse como en casa, así que
+los 1.200 teleperos juegan con gafas de bucear y snorkel. Ella la presenta como «la primera Tenerife LanD Party
+acuática tecnológica más grande del mundo», todo el mundo la corrige («Es LAN, presidenta») y a ella le da igual:
+el HUD cuenta las correcciones y su **Postureo** (lo que entiende se queda en 0 %).
+
+De izquierda a derecha: entrada → zona LAN → Summer-Con → K-Pop → TLP Innova → escenario principal.
+
+1. **Explorando**: junto a la pancarta de la entrada (con la D tapada con cinta).
+2. **Escondido**: debajo de las mesas de la zona LAN; solo el sonar lo revela.
+3. **La partida de Kevin**: minijuego de ritmo (1-2-3 o tocando las líneas). Pierda o gane, Kevin dice «GG» y Rosa entiende «¡gracias, gracias!».
+4. **Summer-Con**: encuentra con el sonar la corona, la capa y el tridente (Rosa se los pone) y preséntate al concurso de cosplay. No gana: le dan las gracias por participar… y ella cree que es la mejor presidenta delfina de la historia.
+5. **K-Pop Random Play Dance**: repite el estribillo (puzle musical). Se hace viral… como meme.
+6. **TLP Innova**: ponencia «Blockchain, metaverso e IA aplicados a la gestión de rotondas»; el jugador elige sus respuestas.
+7. **El router («NO TOCAR»)**: Rosa baja el ping con una escala descendente… y deja sin red el recinto y sin luz a toda la ciudad (por las ventanas se ve apagarse).
+
+Por el camino hay teleperos que le preguntan cosas del mundillo (respuestas a elegir) y la megafonía no deja de
+recordar quién paga. Con los siete fragmentos, el generador de la Coalición enciende la pantalla gigante con su
+logo y Rosa clausura el evento en el escenario principal: **¡GRACIAS, ROSA THE DOLPHIN!**… y «¡¡ES LAN!!».
+
 ## Tu propia música
 
 Menú → **MÚSICA** → «Elegir una canción de mi dispositivo…». La canción sustituye al tema oficial: empieza lejana y amortiguada y se abre con cada fragmento, hasta sonar completa en el final.
@@ -99,13 +122,15 @@ cualquier instrumento por un sample real más adelante.
 src/
   main.ts                 configuración de Phaser (1920x1080, escala FIT adaptativa)
   config.ts               notas, colores, profundidades, nombres de capas
-  scenes/                 Boot, Preload (genera texturas), Menu, Intro, Game, UI (HUD/overlays), Ending
+  scenes/                 Boot, Preload (genera texturas), Menu (elige nivel), Intro, Game (Melodía I),
+                          TLPScene (Melodía II), UI (HUD, diálogos, respuestas a elegir, minijuego de ritmo), Ending
   entities/               RosaPlayer (cuerpo + melena simulada), SwimmingController, MusicalNote,
                           MelodyFragment, Creatures (Lumi, tortugas, bancos de peces, medusas, manta)
   systems/                AudioManager, SonarSystem, MusicPuzzle, MusicSequence, GratitudeSystem,
                           DialogueSystem (en UIScene), ObjectiveSystem, SaveManager, ParticleManager
   level/                  RotondaData (geometría compartida), RotondaBuilder (capas y parallax), missions
-  art/                    arte procedural en canvas: Rosa, entorno, criaturas, efectos
+  level/tlp/              TLPData, TLPBuilder (recinto, luces, apagón), tlpMissions
+  art/                    arte procedural en canvas: Rosa, entorno, criaturas, efectos, TLPArt (recinto y gente)
 ```
 
 **GratitudeSystem** es el sistema de progresión narrativa reutilizable: cada misión declara quién necesita ayuda,
@@ -117,7 +142,8 @@ agradecimientos quedan guardados y se cuentan en el HUD.
 
 ```bash
 npm run dev                  # en otra terminal
-npm run qa                   # juega el nivel entero en Chromium con teclado real
+npm run qa                   # juega la Melodía I entera en Chromium con teclado real
+npm run qa:tlp               # juega la Melodía II entera
 ```
 
 `scripts/qa.mjs` recorre menú → intro → nado/inercia → sonar → notas ocultas → 7 fragmentos → ambos puzles

@@ -1,0 +1,87 @@
+import type { GratitudeMission } from '../../systems/GratitudeSystem';
+import { TLP_FINAL, TLP_PUZZLES } from './TLPData';
+
+/**
+ * Missions of Melodía II. Rosa collects thank-yous at the Tenerife LAN Party
+ * (she insists on calling it "LanD"); `reality` tells what really happened.
+ */
+export const TLP_MISSIONS: GratitudeMission[] = [
+  {
+    id: 'welcome',
+    helper: 'La organización de la TLP',
+    problem: 'Hay que inaugurar la primera edición acuática.',
+    transformation: 'event-opened',
+    thanker: 'La organizadora',
+    message: 'Gracias por venir, presidenta…',
+    tone: 'small',
+  },
+  {
+    id: 'gg',
+    helper: 'Kevin, 12 años',
+    problem: 'Le falta un compañero para terminar la partida.',
+    transformation: 'match-won',
+    thanker: 'Kevin, 12 años',
+    message: 'GG',
+    followUps: ['Rosa: «¡De nada, de nada! Qué educada es la juventud.»'],
+    reality: '«GG» significa «good game». Nadie le ha dado las gracias.',
+    tone: 'warm',
+  },
+  {
+    id: 'cosplay',
+    helper: 'La Summer-Con',
+    problem: 'El concurso de cosplay necesita participantes.',
+    transformation: 'cosplay-diploma',
+    thanker: 'El jurado de la Summer-Con',
+    message: '¡Gracias por participar!',
+    followUps: ['Rosa: «¡He ganado! ¡Soy la mejor presidenta delfina de la historia!»'],
+    reality: 'Rosa no ha ganado. Era un diploma de participación. Lo tenían todos.',
+    tone: 'warm',
+  },
+  {
+    id: 'kpop',
+    helper: 'Las fans del K-Pop',
+    problem: 'Falta alguien en la coreografía.',
+    melody: TLP_PUZZLES.kpop,
+    transformation: 'viral-dance',
+    thanker: 'Las fans del K-Pop',
+    message: '¡Gracias, Rosa!',
+    followUps: ['El vídeo ya tiene 2 millones de visitas.'],
+    reality: 'Es tendencia… como meme: «Delfina intenta bailar K-Pop y no da ni una».',
+    tone: 'warm',
+  },
+  {
+    id: 'innova',
+    helper: 'TLP Innova',
+    problem: 'Falta una ponente que hable del futuro.',
+    transformation: 'innovation-hub',
+    thanker: 'El público de TLP Innova',
+    message: 'Gracias… (aplauso educado)',
+    followUps: ['Rosa ha prometido un «hub de innovación».'],
+    reality: 'Nadie ha entendido nada. El «hub de innovación» que ha prometido es la rotonda.',
+    tone: 'warm',
+  },
+  {
+    id: 'router',
+    helper: 'Los teleperos',
+    problem: 'La red va lenta: hay lag en toda la zona LAN.',
+    melody: TLP_PUZZLES.router,
+    transformation: 'blackout',
+    thanker: 'Los teleperos',
+    message: '¿Gracias… supongo?',
+    followUps: ['El ping ha bajado. Todo ha bajado.'],
+    reality: '1.200 teleperos sin internet. Y toda la ciudad, sin luz.',
+    tone: 'warm',
+  },
+  {
+    id: 'tlp',
+    helper: 'Toda la Tenerife LAN Party',
+    problem: 'La clausura necesita una melodía en el escenario principal.',
+    melody: TLP_FINAL,
+    transformation: 'closing-ceremony',
+    thanker: 'Toda la Tenerife LAN Party',
+    message: '¡GRACIAS, ROSA THE DOLPHIN!',
+    followUps: ['Ha clausurado la primera TLP acuática de la historia.', 'Melodía completada.'],
+    reality: 'La ciudad sigue sin luz. El generador de la Coalición solo alimenta la pantalla con su logo.',
+    tone: 'grand',
+  },
+];

@@ -6,21 +6,29 @@ import { AudioManager } from '../systems/AudioManager';
 /** Three short lines, then the level begins. Skippable. */
 export class IntroScene extends Phaser.Scene {
   private skipping = false;
+  private level: 'rotonda' | 'tlp' = 'rotonda';
 
   constructor() {
     super('IntroScene');
   }
 
-  create(): void {
+  create(data?: { level?: 'rotonda' | 'tlp' }): void {
     centerLayout(this);
     this.skipping = false;
+    this.level = data?.level ?? 'rotonda';
     this.cameras.main.setBackgroundColor('#020a1a');
-    const lines = [
-      'Se acercan las elecciones en el océano.',
-      'Rosa, presidenta de la Coalición Delfinaria, aún no tiene su melodía perfecta.',
-      'Y sin melodía… nadie le dará las gracias.',
-    ];
-    const notes = [[67], [64], [72]];
+    const lines = this.level === 'tlp'
+      ? [
+          'Quedan pocos días para las elecciones.',
+          'La Coalición Delfinaria ha subvencionado la Tenerife LAN Party…',
+          '…y Rosa ha mandado inundar el recinto. Para sentirse como en casa.',
+        ]
+      : [
+          'Se acercan las elecciones en el océano.',
+          'Rosa, presidenta de la Coalición Delfinaria, aún no tiene su melodía perfecta.',
+          'Y sin melodía… nadie le dará las gracias.',
+        ];
+    const notes = this.level === 'tlp' ? [[64], [67], [69]] : [[67], [64], [72]];
     const glow = this.add.image(960, 540, 'glow').setScale(6, 2).setTint(0x1f6fb0).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.4, duration: 3000, yoyo: true, repeat: -1 });
     const bubbles = this.add.particles(0, 1100, 'bubble', {
@@ -50,6 +58,6 @@ export class IntroScene extends Phaser.Scene {
     if (this.skipping) return;
     this.skipping = true;
     this.cameras.main.fadeOut(900, 2, 10, 26);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('GameScene', { continue: false }));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(this.level === 'tlp' ? 'TLPScene' : 'GameScene', { continue: false }));
   }
 }

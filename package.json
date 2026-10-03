@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "qa": "node scripts/qa.mjs"
+    "qa": "node scripts/qa.mjs",
+    "qa:tlp": "node scripts/qa-tlp.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"
